@@ -26,7 +26,9 @@
 #     otpt
 #     vbotpt
 #     simusg
-#     crdusg
+#     dtusg
+#     opvsn
+#     opttl
 # -- bootstrapping --
 # ftbtdf
 #   ssbtvdef
@@ -131,7 +133,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.4.0-a.1+20230101220824"
+gotov_semver="v0.5.0-a.0+20230102134332"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -231,10 +233,32 @@ gotoh_flagger() {
 }
 
 # -- opvsn --
+# output goto version and build
 gotoh_version() { 
 	>&2 echo "${gotov_semver%%+*}"
 	>&2 echo "build metadata: ${gotov_semver##*+}"
 }
+
+# -- opttl --
+# output goto title screen
+gotoh_title() {
+	title='goto: a command-line shortcuts manager'
+	author='by Q Zhang'
+	location='Washington, D.C., USA'
+	repo='repo: github.com/poiurewq/goto'
+	cols=$( tput cols )
+	clear
+	echo; echo; echo
+	printf "%*s\n" $(( (${#title} + cols ) / 2 )) "${title}"
+	echo; echo; echo
+	printf "%*s\n" $(( (${#author} + cols ) / 2 )) "${author}"
+	echo; echo; echo
+	printf "%*s\n" $(( (${#location} + cols ) / 2 )) "${location}"
+	echo; echo; echo
+	printf "%*s\n" $(( (${#repo} + cols ) / 2 )) "${repo}"
+	echo; echo; echo
+}
+
 
 # -- simusg --
 # simple usage output
@@ -261,7 +285,7 @@ GOTO_USAGE
 # -- dtusg --
 # detailed usage output
 gotoh_detailed_usage() {
-	>&2 cat <<GOTO_DETAILED_USAGE
+	less <<GOTO_DETAILED_USAGE
 
 goto: maintain and open shortcuts to files, directories, and links.
 
@@ -318,8 +342,9 @@ CRUD usage: goto [options]
         goto -b
 
 other usage:
-	goto --version         (non-interactive)
-  goto --factory-setting (interactive)
+  goto --version         # display version and build   (non-interactive)
+  goto --factory-setting # reset to factory setting    (interactive)
+  goto --title           # display a nice title screen (non-interactive)
 
 GOTO_DETAILED_USAGE
 }
@@ -697,22 +722,26 @@ if [ $# -lt 1 ]
 then
 	gotoh_usage
 	return $gotocode_success
-# check if special keyword for usage
-elif [ "$1" = "--help" ]
-then
-	gotoh_detailed_usage
-	return $gotocode_success
-# check if factory setting
-elif [ "$1" = "--factory-setting" ]
-then
-	gotoh_factory_setting
-	return $gotocode_success
-# check if version
-elif [ "$1" = "--version" ]
-then
-	gotoh_version
-	return $gotocode_success
 fi
+# some special options
+case "$1" in
+	--help)
+		gotoh_detailed_usage
+		return $gotocode_success
+		;;
+	--factory-setting)
+		gotoh_factory_setting
+		return $gotocode_success
+		;;
+	--version)
+		gotoh_version
+		return $gotocode_success
+		;;
+	--title)
+		gotoh_title
+		return $gotocode_success
+		;;
+esac
 
 # == chkjsn ==
 # -- chkfj --
@@ -1491,6 +1520,7 @@ gotoh_delete() {
 	local deletion_filter="getpath(${absolute_path})|=empty"
 	# count the expected number of lines to be deleted
 	local expected_deleted_lines="$( jq "getpath(${absolute_path})" "${gotov_json_filepath}" | wc -l | tr -d ' ' )"
+	(( expected_deleted_lines ++ ))
 	# call overwrite to delete & process its return code
 	local overwrite_code
 	gotoh_overwrite_json "${deletion_filter}" "$expected_deleted_lines"
