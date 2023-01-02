@@ -131,7 +131,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.4.0-a.1+20230101215837"
+gotov_semver="v0.4.0-a.1+20230101220824"
 
 # -- general error codes cddefs --
 gotocode_success=0
