@@ -1,4 +1,4 @@
-# goto
+# goto: your command-line shortcuts manager
 
 
-	started 2023-01-01
+	started 2022-12-24
