@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.1-a.0+20230103114237"
+gotov_semver="v0.5.2-a.0+20230103170003"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -639,9 +639,11 @@ gotov_settings_contents[gotov_verboseOutput]="$( gotoh_extract_substring "${goto
 # directoryOpener: setting for how to open directories.
 #   cd: calls 'cd', so simply changes the directory.
 #   system: calls the 'open' command, so the opener is system-dependent
+#   cdl: calls 'cd, then ls', so changes dir & displays contents.
+#   cdll: calls 'cd, then ls -l', so changes dir & displays contents in detailed format.
 #   default is 'cd'
 gotov_directoryOpener=4
-gotov_settings_options[gotov_directoryOpener]="cd;system"
+gotov_settings_options[gotov_directoryOpener]="cd;system;cdl;cdll"
 gotov_settings_keywords[gotov_directoryOpener]="directoryOpener"
 gotov_settings_descriptions[gotov_directoryOpener]="Determines how directories are opened."
 gotov_settings_contents[gotov_directoryOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_directoryOpener]}" ';' "0" )"
@@ -1147,6 +1149,9 @@ gotoh_recursive_json_search() {
 gotoh_go() {
 	local type="$1"
 	local destination="$2"
+	# Do not use gotoh_verbose for this. This is so that verbose setting doesn't affect this.
+	echo "$destination"
+	# Opener settings
 	case "$type" in
 		d)
 			if ! [ -d "$destination" ]
@@ -1156,6 +1161,8 @@ gotoh_go() {
 			case "$gotov_directoryOpener_setting" in
 				cd) cd "$destination" ;;
 				system) open "$destination" ;;
+				cdl) cd "$destination"; ls ;;
+				cdll) cd "$destination"; ls -l ;;
 				*) gotoh_output "Unknown directory opener setting '${gotov_directoryOpener_setting}'" ;;
 			esac
 			;;
@@ -1191,8 +1198,6 @@ gotoh_go() {
 			return $gotocode_unknown_type
 			;;
 	esac
-	# Do not use gotoh_verbose for this. This is so that verbose setting doesn't affect this.
-	echo "$destination"
 }
 
 # -- open the destination at the end of the absolute path opabsp --
