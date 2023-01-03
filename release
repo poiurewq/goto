@@ -1,5 +1,5 @@
 #!/bin/bash
-releasev_goto_filepath='/Users/qzhang/.bash_ccm/goto.sh'
+releasev_goto_filepath=~/'.bash_ccm/goto.sh'
 if [ -f $releasev_goto_filepath ]
 then
 	cp $releasev_goto_filepath .
