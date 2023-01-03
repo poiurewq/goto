@@ -94,6 +94,7 @@
 #   v0.2.0: improve jq invocations. add settings so that usage is non-interactive. only bootstrap algorithms remain obligatorily interactive.
 #   v0.3.0: add goto.json crud: both non-interactive and interactive.
 #   v0.4.0: add goto.json browse.
+#   v0.5.0: add a neat title screen.
 #   future: add move operation.
 # file note: this is a sourced script. no need for chmod +x. no need for loading definition upon startup. needs insertion of an alias in bash profile.
 # dependencies: rlist (and its dependencies), jq
@@ -133,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.0-a.0+20230102210001"
+gotov_semver="v0.5.1-a.0+20230102210309"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -712,6 +713,7 @@ GOTO_VERBOSE_SETTING="${gotov_verboseOutput_setting}"
 # check if it's the first time. only if not first time, continue.
 if [ "$gotov_firsttime_status" = true ]
 then
+	gotoh_title
 	gotoh_output "goto.sh first-time set-up complete." "Please restart the shell to use goto.sh."
 	return $gotocode_success
 fi
