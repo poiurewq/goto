@@ -93,11 +93,11 @@
 #   v0.1.0: combines & generalizes the functionality of goto and course from before 2022-12-24. the aim is ease-of-use and ease-of-keyword-definition.
 #   v0.2.0: improve jq invocations. add settings so that usage is non-interactive. only bootstrap algorithms remain obligatorily interactive.
 #   v0.3.0: add goto.json crud: both non-interactive and interactive.
-#   v0.4.0: add goto.json browse.
-#   v0.5.0: add a neat title screen.
+#   v0.4.0: add goto.json browse. `goto -b`
+#   v0.5.0: add a neat title screen. `goto --title`
 #   future: add move operation.
 # file note: this is a sourced script. no need for chmod +x. no need for loading definition upon startup. needs insertion of an alias in bash profile.
-# dependencies: rlist (and its dependencies), jq
+# dependencies: jq
 
 # -- json format jsnfmt --
 # There are two major sections to goto.json
@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.1-a.0+20230102210309"
+gotov_semver="v0.5.1-a.0+20230103114237"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -240,24 +240,45 @@ gotoh_version() {
 	>&2 echo "build metadata: ${gotov_semver##*+}"
 }
 
+# -- helper for center-printing ctpt --
+# output $1 to the center of the screen
+#   credit to https://superuser.com/questions/823883/how-to-justify-and-center-text-in-bash
+gotoh_center_print() {
+	local str="$1"
+	local cols=$( tput cols )
+	printf "%*s\n" $(( (${#str} + cols ) / 2 )) "${str}"
+}
+
+# -- helper for printing several newlines --
+gotoh_newlines() {
+	local lines="$1"
+	local each_line
+	for each_line in $( seq ${lines} )
+	do
+		echo
+	done
+}
+
 # -- opttl --
 # output goto title screen
 gotoh_title() {
-	title='goto: a command-line shortcuts manager'
-	author='by Q Zhang'
-	location='Washington, D.C., USA'
-	repo='repo: github.com/poiurewq/goto'
-	cols=$( tput cols )
+	local title='goto: a command-line shortcuts manager'
+	local author='by Q Zhang'
+	local location='Washington, D.C., USA'
+	local repo='repo: github.com/poiurewq/goto'
+	local version="${gotov_semver%%-*}"
 	clear
-	echo; echo; echo
-	printf "%*s\n" $(( (${#title} + cols ) / 2 )) "${title}"
-	echo; echo; echo
-	printf "%*s\n" $(( (${#author} + cols ) / 2 )) "${author}"
-	echo; echo; echo
-	printf "%*s\n" $(( (${#location} + cols ) / 2 )) "${location}"
-	echo; echo; echo
-	printf "%*s\n" $(( (${#repo} + cols ) / 2 )) "${repo}"
-	echo; echo; echo
+	gotoh_newlines 3
+	gotoh_center_print "${title}"
+	gotoh_newlines 3
+	gotoh_center_print "${author}"
+	gotoh_newlines 3
+	gotoh_center_print "${location}"
+	gotoh_newlines 3
+	gotoh_center_print "${repo}"
+	gotoh_newlines 3
+	gotoh_center_print "${version}"
+	gotoh_newlines 3
 }
 
 
@@ -314,7 +335,7 @@ CRUD usage: goto [options]
     -c | --create  -k 'keywords' -d 'description' -t 'type' -n 'destination' -under parent
     -cd| --create-directory -k 'keywords' -d 'description' -under parent
     -r | --read   [-sc] shortcut
-		-r | --read    -st  setting
+    -r | --read    -st  setting
     -u | --update  -k 'keyword'     -of shortcut
     -u | --update  -d 'description' -of shortcut
     -u | --update  -t 'type'        -of shortcut
@@ -714,7 +735,11 @@ GOTO_VERBOSE_SETTING="${gotov_verboseOutput_setting}"
 if [ "$gotov_firsttime_status" = true ]
 then
 	gotoh_title
-	gotoh_output "goto.sh first-time set-up complete." "Please restart the shell to use goto.sh."
+	gotolv_setup_complete='goto.sh first-time set-up complete.'
+	gotoh_center_print "${gotolv_setup_complete}"
+	gotolv_restart_msg='Please restart the shell to use goto.sh.'
+	gotoh_center_print "${gotolv_restart_msg}"
+	unset gotolv_cols gotolv_setup_complete gotolv_restart_msg
 	return $gotocode_success
 fi
 
@@ -1385,11 +1410,9 @@ gotoh_read() {
 	fi
 
 	# prepare the lines to print
-	#   first get the number of columns
-	local columns="$( tput cols )"
+	local columns=$( tput cols )
 	#   next center-print the keyword line
-	#     credit to https://superuser.com/questions/823883/how-to-justify-and-center-text-in-bash
-	printf "%*s\n" $(( (${#keyword} + columns) / 2)) "$keyword"
+	gotoh_center_print "${keyword}"
 	#   next center-print each segment of the description, with each segment no wider than columns - 8
 	local total_description_length=${#description}
 	local description_width=$(( columns - 8 ))
@@ -1398,13 +1421,13 @@ gotoh_read() {
 	while [ $current_description_segment_starting_index -lt $total_description_length ]
 	do
 		current_description_segment="${description:${current_description_segment_starting_index}:${description_width}}"
-		printf "%*s\n" $(( (${#current_description_segment} + columns) / 2)) "$current_description_segment"
+		gotoh_center_print "${current_description_segment}"
 		current_description_segment_starting_index=$(( current_description_segment_starting_index + description_width ))
 	done
 	#   finally center-print the destination / content, if it's not null of course.
 	if [ "$content" != "null" ]
 	then
-		printf "%*s\n" $(( (${#content} + columns) / 2)) "$content"
+		gotoh_center_print "${content}"
 	fi
 }
 
@@ -1598,9 +1621,9 @@ gotoh_print_family() {
 	#   first get the number of columns
 	local columns="$( tput cols )"
 	#   center-print children count
-	printf "%*s\n" $(( (${#children_count_string} + columns) / 2)) "${children_count_string}"
+	gotoh_center_print "${children_count_string}"
 	#   next center-print the keywords
-	printf "%*s\n" $(( (${#children_keywords_string} + columns) / 2)) "${children_keywords_string}"
+	gotoh_center_print "${children_keywords_string}"
 }
 
 ###########################################
