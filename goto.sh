@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.2-a.0+20230103170003"
+gotov_semver="v0.5.2-a.1+20230110131244"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -645,7 +645,7 @@ gotov_settings_contents[gotov_verboseOutput]="$( gotoh_extract_substring "${goto
 gotov_directoryOpener=4
 gotov_settings_options[gotov_directoryOpener]="cd;system;cdl;cdll"
 gotov_settings_keywords[gotov_directoryOpener]="directoryOpener"
-gotov_settings_descriptions[gotov_directoryOpener]="Determines how directories are opened."
+gotov_settings_descriptions[gotov_directoryOpener]="Determines how directories are opened by default. Option 'system' means open using 'open', while 'cd' means using the cd command. Option 'cdl' means 'cd' then 'ls', while 'cdll' means 'cd' then 'ls -l'."
 gotov_settings_contents[gotov_directoryOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_directoryOpener]}" ';' "0" )"
 
 
@@ -654,7 +654,7 @@ gotov_settings_contents[gotov_directoryOpener]="$( gotoh_extract_substring "${go
 #   rlist: calls 'rlist', which is a custom script I use for tracking links.
 #   default is 'system'
 gotov_linkOpener=5
-gotov_settings_options[gotov_linkOpener]="system;rlist"
+gotov_settings_options[gotov_linkOpener]="system;rlist;personal;school"
 gotov_settings_keywords[gotov_linkOpener]="linkOpener"
 gotov_settings_descriptions[gotov_linkOpener]="Determines how links are opened."
 gotov_settings_contents[gotov_linkOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_linkOpener]}" ';' "0" )"
@@ -1188,9 +1188,9 @@ gotoh_go() {
 					# open the link
 					open "${destination}"
 					;;
-				rlist)
-					rlist go "$destination" 
-					;;
+				rlist) rlist go "$destination" ;;
+				personal) chrome --personal "$destination" ;;
+				school) chrome --school "$destination" ;;
 			esac
 			;;
 		*)
@@ -2348,7 +2348,7 @@ gotoui_update() {
 				while [ "$valid_selection" = false ]
 				do
 					gotoh_output "Here are all the options for the setting." \
-						"Type the number corresponding to the desired option."
+						"Type the number corresponding to the desired option or 'q' to quit."
 					local option_index option_position
 					for option_position in $(seq ${setting_options_count} )
 					do
@@ -2357,6 +2357,12 @@ gotoui_update() {
 						gotoh_output "${option_position}: ${setting_options_array[option_index]}"
 					done
 					read -p "Number: " selected_option_number
+					# first check for quit
+					if [ "$selected_option_number" = 'q' ]
+					then
+						gotoh_output "Update cancelled."
+						return $gotocode_interactive_operation_cancelled
+					fi
 					# make sure that the number is a valid number and within the options range
 					if [[ "$selected_option_number" =~ $number_regex ]] && \
 						[ "$selected_option_number" -le "$setting_options_count" ]
