@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.2-a.1+20230110131244"
+gotov_semver="v0.5.3-a.0+20230114230129"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -155,9 +155,10 @@ gotocode_impossible_match_count_json=15
 gotocode_impossible_match_count_filesystem=16
 gotocode_wrong_type=17
 gotocode_unknown_type=18
-gotocode_cannot_goto_topic=19
-gotocode_cannot_set_topic=20
-gotocode_cannot_search_further_in_filesystem=21
+gotocode_unknown_setting=19
+gotocode_cannot_goto_topic=20
+gotocode_cannot_set_topic=21
+gotocode_cannot_search_further_in_filesystem=22
 gotocode_weird_file_type=30
 gotocode_partial_quit=31
 gotocode_interactive_operation_cancelled=32
@@ -659,6 +660,25 @@ gotov_settings_keywords[gotov_linkOpener]="linkOpener"
 gotov_settings_descriptions[gotov_linkOpener]="Determines how links are opened."
 gotov_settings_contents[gotov_linkOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_linkOpener]}" ';' "0" )"
 
+# codeOpener: setting for how to open code-format files: .md, .json, .sh
+#   vim: opened with vim.
+#   vscode: opened with VSCode (if it exists).
+#   default is 'vim'
+gotov_codeOpener=6
+gotov_settings_options[gotov_codeOpener]="vim;vscode"
+gotov_settings_keywords[gotov_codeOpener]="codeOpener"
+gotov_settings_descriptions[gotov_codeOpener]="Determines how code files are opened."
+gotov_settings_contents[gotov_codeOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_codeOpener]}" ';' "0" )"
+
+# showChildren: setting for whether goto --read shows the children of the desired shortcut.
+#   on / off
+#   default is 'off'
+gotov_showChildren=7
+gotov_settings_options[gotov_showChildren]="on;off"
+gotov_settings_keywords[gotov_showChildren]="showChildren"
+gotov_settings_descriptions[gotov_showChildren]="Determines whether goto -r | goto --read shows the children of the desired shortcut."
+gotov_settings_contents[gotov_showChildren]="$( gotoh_extract_substring "${gotov_settings_options[gotov_showChildren]}" ';' "1" )"
+
 # == set up goto.json, also in destination directory stjs ==
 gotov_json_filename="goto.json"
 gotov_json_filepath="$gotov_dest_dirpath/$gotov_json_filename"
@@ -725,6 +745,8 @@ gotov_filesystemPartialMatch_setting="$( jq -nr "${gotov_settings_array}|.[]|sel
 gotov_verboseOutput_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_verboseOutput]}\")|.content" )"
 gotov_directoryOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_directoryOpener]}\")|.content" )"
 gotov_linkOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_linkOpener]}\")|.content" )"
+gotov_codeOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_codeOpener]}\")|.content" )"
+gotov_showChildren_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_showChildren]}\")|.content" )"
 
 # make necessary variable updates
 GOTO_VERBOSE_SETTING="${gotov_verboseOutput_setting}"
@@ -1172,7 +1194,13 @@ gotoh_go() {
 				gotoh_verbose "Destination file '$destination' not found."
 			fi
 			case "$destination" in
-				*.md|*.json|*.sh) vim "$destination" ;;
+				*.md|*.json|*.sh) 
+					case "$gotov_codeOpener_setting" in
+						vim) vim "$destination" ;;
+						vscode) open -a 'Visual Studio Code' "$destination" ;;
+						*) gotoh_output "Unknown code opener setting '${gotov_codeOpener_setting}'" ;;
+					esac					
+					;;
 				*) open "$destination" ;;
 			esac
 			;;
@@ -1998,7 +2026,7 @@ gotoui_create() {
 #   if keywords match, print neatly formatted information of match
 # Behavior
 #   uses rcjs to search for match
-#   output according to Output rules above
+#   output according to Output rules above & showChildren setting
 # Invariants
 #   input must contain -sc / -st at the start
 #   input must have at least one keyword
@@ -2041,9 +2069,18 @@ gotoui_read() {
 		gotoh_output "No unique match found."
 		return $gotocode_no_unique_match
 	
-	# else, single match, then read.
+	# else, single match, then read based on showChildren setting.
 	else
-		gotoh_read "${subset_option}" "$matched_absolute_path"
+		if [ "$gotov_showChildren_setting" = "off" ]
+		then
+			gotoh_read "${subset_option}" "$matched_absolute_path"
+		elif [ "$gotov_showChildren_setting" = "on" ]
+		then
+			gotoh_print_family "${subset_option}" "$matched_absolute_path"
+		else
+			gotoh_output "Invalid showChildren setting '${gotov_showChildren_setting}'"
+			return $gotocode_unknown_setting
+		fi
 	fi
 }
 
