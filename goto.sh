@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.3-a.0+20230114230129"
+gotov_semver="v0.5.4-a.0+20230118122521"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -644,10 +644,10 @@ gotov_settings_contents[gotov_verboseOutput]="$( gotoh_extract_substring "${goto
 #   cdll: calls 'cd, then ls -l', so changes dir & displays contents in detailed format.
 #   default is 'cd'
 gotov_directoryOpener=4
-gotov_settings_options[gotov_directoryOpener]="cd;system;cdl;cdll"
+gotov_settings_options[gotov_directoryOpener]="system;cd;cdl;cdll;pushd;pushdl"
 gotov_settings_keywords[gotov_directoryOpener]="directoryOpener"
 gotov_settings_descriptions[gotov_directoryOpener]="Determines how directories are opened by default. Option 'system' means open using 'open', while 'cd' means using the cd command. Option 'cdl' means 'cd' then 'ls', while 'cdll' means 'cd' then 'ls -l'."
-gotov_settings_contents[gotov_directoryOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_directoryOpener]}" ';' "0" )"
+gotov_settings_contents[gotov_directoryOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_directoryOpener]}" ';' "1" )"
 
 
 # linkOpener: setting for how to open links.
@@ -1181,10 +1181,12 @@ gotoh_go() {
 				gotoh_verbose "Destination dir '$destination' not found."
 			fi
 			case "$gotov_directoryOpener_setting" in
-				cd) cd "$destination" ;;
 				system) open "$destination" ;;
+				cd) cd "$destination" ;;
 				cdl) cd "$destination"; ls ;;
 				cdll) cd "$destination"; ls -l ;;
+				pushd) pushd "$destination" ;;
+				pushdl) pushd "$destination"; ls -l ;;
 				*) gotoh_output "Unknown directory opener setting '${gotov_directoryOpener_setting}'" ;;
 			esac
 			;;
