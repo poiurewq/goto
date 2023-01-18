@@ -44,7 +44,7 @@
 #   chkdep
 #     chkjq
 #     chkrl
-#   gtstvrs
+#   stdefs
 #   stjs
 #   gtsts
 # -- checkpoint --
@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.4-a.0+20230118122521"
+gotov_semver="v0.5.5-a.0+20230118130606"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -580,7 +580,7 @@ unset tmptrash
 # fi
 # unset tmptrash
 
-# == set up variables for settings gtstvrs ==
+# == set up variables for settings stdefs ==
 # an array of settings keywords, descriptions, and contents
 gotov_settings_keywords=()
 gotov_settings_descriptions=()
@@ -679,6 +679,15 @@ gotov_settings_keywords[gotov_showChildren]="showChildren"
 gotov_settings_descriptions[gotov_showChildren]="Determines whether goto -r | goto --read shows the children of the desired shortcut."
 gotov_settings_contents[gotov_showChildren]="$( gotoh_extract_substring "${gotov_settings_options[gotov_showChildren]}" ';' "1" )"
 
+# filesystemFuzzySearch: setting for whether filesystem search uses exact or fuzzy search on the keywords.
+#   on / off
+#   default is 'on'
+gotov_filesystemFuzzySearch=8
+gotov_settings_options[gotov_filesystemFuzzySearch]="on;off"
+gotov_settings_keywords[gotov_filesystemFuzzySearch]="filesystemFuzzySearch"
+gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If off, it uses exact search."
+gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "0" )"
+
 # == set up goto.json, also in destination directory stjs ==
 gotov_json_filename="goto.json"
 gotov_json_filepath="$gotov_dest_dirpath/$gotov_json_filename"
@@ -747,6 +756,7 @@ gotov_directoryOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.ke
 gotov_linkOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_linkOpener]}\")|.content" )"
 gotov_codeOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_codeOpener]}\")|.content" )"
 gotov_showChildren_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_showChildren]}\")|.content" )"
+gotov_filesystemFuzzySearch_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_filesystemFuzzySearch]}\")|.content" )"
 
 # make necessary variable updates
 GOTO_VERBOSE_SETTING="${gotov_verboseOutput_setting}"
@@ -3126,6 +3136,7 @@ gotoui_goto() {
 
 	# while there's still a keyword, recursively search the current filesystem starting at $dir_in_which_to_look
 	local current_keyword current_find_wcl_output current_find_count current_find_result
+	set -o pipefail
 	while [ $unmatched_keyword_index -lt $number_of_keywords ]
 	do
 		# = count matches from find fscm =
@@ -3134,18 +3145,27 @@ gotoui_goto() {
 
 		# build find command
 		gotolf_current_find_command() { 
-			find "${dir_in_which_to_look}" -name "${current_keyword}"
+			if [ "$gotov_filesystemFuzzySearch_setting" = "on" ]
+			then
+				find "${dir_in_which_to_look}" -iname "*${current_keyword}*"
+			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
+			then
+				find "${dir_in_which_to_look}" -name "${current_keyword}"
+			else
+				gotoh_verbose "Error: unknown filesystemFuzzySearch setting '${gotov_filesystemFuzzySearch_setting}'"
+				return $gotocode_unknown_setting
+			fi
 		}
 
 		# count number of finds
-		current_find_wcl_output="$( gotolf_current_find_command | wc -l )"
+		current_find_wcl_output="$( gotolf_current_find_command | wc -l )" || return $?
 		current_find_count="$( echo "${current_find_wcl_output}" | tr -d ' ' )"
 
 		# increment number examined
 		(( number_of_keywords_examined_by_find ++ ))
 
 		# get the found filepath result
-		current_find_result="$( gotolf_current_find_command )"
+		current_find_result="$( gotolf_current_find_command )" || return $?
 
 		# = if-else on the filesystem search match count fsmc =
 		# - fsnm -
@@ -3295,5 +3315,7 @@ gotoui_goto() {
 
 # == We actually run the goto UI function rngt ==
 gotoui_goto "$@"
+# reset pipefail in case it's set to 'on' in gotoui_goto
+set +o pipefail
 gotoh_unset_all
 return $gotocode_success
