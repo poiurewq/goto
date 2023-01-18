@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.5-a.1+20230118173330"
+gotov_semver="v0.5.5-a.1+20230118175101"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1020,9 +1020,6 @@ gotoh_recursive_json_search() {
 		#   jsonPartialMatch setting or quit.
 		if [ "${current_number_of_matches}" -eq 0 ]
 		then
-			keywords_examined=$((current_unmatched_keyword_index + 1))
-			local current_keyword_sequence="${keywords[@]:0:${keywords_examined}}"
-			gotoh_verbose "We did not find any match for the keyword sequence '${current_keyword_sequence// / -> }' in goto.json" # diagnostic
 			
 			# if keyword sequence is longer than 1, that means we had a partial match up to the previous keyword.
 			# as long as there's a partial match, regardless of jsonPartialMatch setting, we'll echo the partially matched path.
@@ -1030,12 +1027,13 @@ gotoh_recursive_json_search() {
 			then
 				# always return absolute path and unmatched keyword index.
 				local current_unmatched_keyword_sequence="${keywords[@]:0:${current_unmatched_keyword_index}}"
-				gotoh_verbose "However, we were able to match up to '${current_unmatched_keyword_sequence// / -> }'." # diagnostic
+				gotoh_verbose "We were able to match up to '${current_unmatched_keyword_sequence// / -> }'." # diagnostic
 				echo "${last_match_absolute_path}"
 				return $current_unmatched_keyword_index
 			fi
 			
 			# else, this means even the first keyword wasn't matched, so we return unmatched index without echoing an absolute path
+			gotoh_verbose "We did not find any match for the first keyword '${keywords[0]}' in goto.json" # diagnostic
 			return $current_unmatched_keyword_index
 
 		# - single match jssm -
