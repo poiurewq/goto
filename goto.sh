@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.5-a.0+20230118130606"
+gotov_semver="v0.5.5-a.1+20230118173330"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -988,13 +988,17 @@ gotoh_recursive_json_search() {
 	# set up variables for the json recursive search loop
 	local keywords=( "${@:2}" )
 	local number_of_keywords=${#keywords[@]}
-	local current_unmatched_keyword_index=0
+	local current_unmatched_keyword_index=-1
 	local last_match_absolute_path=''
 	local keywords_examined=0
 
 	# loop over the keywords
 	while [ $current_unmatched_keyword_index -lt $number_of_keywords ]
 	do
+		# as the first step of our keyword sequence loop, increment keyword index.
+		#   as first iteration begins, this index is 0
+		(( current_unmatched_keyword_index ++ ))
+		
 		# = count matches jscm =
 		# grab current keyword
 		local current_keyword="${keywords[current_unmatched_keyword_index]}"
@@ -1076,12 +1080,13 @@ gotoh_recursive_json_search() {
 					echo 'multiple'
 					print_all_paths=true
 
-				# elif exactly one match, return it
+				# elif exactly one match, echo it. also increment unmatched keyword index and return that. 
 				elif [ "$under_threshold_path_count" -eq 1 ]
 				then
 					local under_threshold_single_match_path_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|.[0]"
 					local under_threshold_single_match_path="$( jq "${under_threshold_single_match_path_filter}" "${gotov_json_filepath}" )"
 					echo "${under_threshold_single_match_path}"
+					(( current_unmatched_keyword_index ++ ))
 					return $current_unmatched_keyword_index
 
 				# elif more than one match, display all paths
@@ -1147,9 +1152,6 @@ gotoh_recursive_json_search() {
 			gotoh_verbose "For some reason, we found '${current_number_of_matches}' matches, which shouldn't happen."
 			return $gotocode_impossible_match_count_json
 		fi
-
-		# as the last step of our keyword sequence loop, increment keyword index
-		(( current_unmatched_keyword_index ++ ))
 	done
 
 	# if all keywords have been successfully matched, return the absolute path
@@ -2450,7 +2452,7 @@ gotoui_update() {
 				local setting_name="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${gotov_json_filepath}" )"
 				gotoh_update "-st" "${matched_absolute_path}" "-n" "${selected_option_string}" \
 					&& gotoh_output "Successfully updated setting '${setting_name}'" \
-					"with new content '${selected_option_string}'"
+					"with new option '${selected_option_string}'"
 				return $gotocode_success
 			# end if-else on subset option
 			fi
@@ -3020,7 +3022,7 @@ gotoui_goto() {
 	local unmatched_keyword_index matched_absolute_path
 	matched_absolute_path="$( gotoh_recursive_json_search -sc ${keywords[@]} )"
 	unmatched_keyword_index=$?
-	# gotoh_output "MAP: $matched_absolute_path" "UKI: $unmatched_keyword_index" # diagnostic
+	# gotoh_verbose "MAP: $matched_absolute_path" "UKI: $unmatched_keyword_index" # diagnostic
 
 	# if-else the rcjs echo output.
 	# if nada, then no match or a partial match when jsonPartialMatch = off
@@ -3054,13 +3056,14 @@ gotoui_goto() {
 		fi
 	
 		# now, the return code matters. process it appropriately using an if-else.
-		# if we've matched all keywords, then go to the path.
+		#   if we've matched all keywords, then go to the path.
+		#     this is the case that guarantees that rcfs will only occur if there is any unmatched keyword left.
 		if [ "$unmatched_keyword_index" -ge "$number_of_keywords" ]
 		then
 			gotoh_open_path "${matched_absolute_path}"
 			return $gotocode_success
 		
-		# elif we have a partial match, follow jsonPartialMatch setting.
+		#   elif we have a partial match, follow jsonPartialMatch setting.
 		elif [ "$unmatched_keyword_index" -lt "$number_of_keywords" ]
 		then
 			# if-else on the jsonPartialMatch setting.
@@ -3071,7 +3074,7 @@ gotoui_goto() {
 				gotoh_open_path "${matched_absolute_path}"
 				return $gotocode_partial_success
 			
-			# elif partial match is off, let it fall through to search the file system after this.
+			# elif partial match is off, and there are still unmatched keywords, let it fall through to search the file system after this.
 			elif [ "$gotov_jsonPartialMatch_setting" = "off" ]
 			then
 				gotoh_verbose "Because jsonPartialMatch = off, we will use the unmatched keywords to search in the file system."
@@ -3097,12 +3100,12 @@ gotoui_goto() {
 	#   the recursive search can only operate on a directory
 	
 	# if-else over the number of keywords not yet matched, to decide in which directory to search.
-	# if no keyword matched in json, then set '.' as the dir in which to look next.
+	#   if no keyword matched in json, then set '.' as the dir in which to look next.
 	if [ $unmatched_keyword_index -eq 0 ]
 	then
 		dir_in_which_to_look="."
 	
-	# else (if at least one keyword matched in json), check the type at the absolute path.
+	#   else (if at least one keyword matched in json), check the type at the absolute path.
 	else
 		local destination_filetype="$( jq -r "getpath(${matched_absolute_path})|.type" "${gotov_json_filepath}" )"
 		
@@ -3118,7 +3121,8 @@ gotoui_goto() {
 		fi
 	# end if-else to set directory to search.
 	fi
-	# At this point, we should have the directory in which to search.
+
+	# - At this point, we should have the directory in which to search. -
 
 	# Let user know which keywords we've matched in json.
 	if [ $unmatched_keyword_index -eq 0 ]
