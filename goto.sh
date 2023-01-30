@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.5-a.1+20230118175101"
+gotov_semver="v0.5.6-a.0+20230129191515"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -968,6 +968,7 @@ gotoh_print_path() {
 #   A (-> ...) -> B (-> ...) -> C goes to the shortcut.
 #   returns according to Output specified above
 gotoh_recursive_json_search() {
+	gotoh_verbose "You have entered rcjs."
 
 	# set up input variables
 	local subset_option="$1"
@@ -992,6 +993,11 @@ gotoh_recursive_json_search() {
 	local last_match_absolute_path=''
 	local keywords_examined=0
 
+	# some extra local vars for gotoh_verbose diagnostics
+	local previous_matched_keyword_sequence
+	local current_matched_keyword_sequence
+	local current_matched_keyword_index
+
 	# loop over the keywords
 	while [ $current_unmatched_keyword_index -lt $number_of_keywords ]
 	do
@@ -1012,6 +1018,12 @@ gotoh_recursive_json_search() {
 		# count number of matches
 		#   count matches
 		local current_number_of_matches="$( jq "[${current_objects_filter}]|length" "${gotov_json_filepath}" )"
+		gotoh_verbose "current number of matches: $current_number_of_matches" "current unmatched keyword index: $current_unmatched_keyword_index"
+
+		# get the current unmatched keyword sequence for some verbose outputs later
+		previous_matched_keyword_sequence="${keywords[@]:0:${current_unmatched_keyword_index}}"
+		current_matched_keyword_index=$(( current_unmatched_keyword_index + 1 ))
+		current_matched_keyword_sequence="${keywords[@]:0:${current_matched_keyword_index}}"
 
 		# = if-else over match count jsmc =
 		# - 0 matches jsnm -
@@ -1026,15 +1038,14 @@ gotoh_recursive_json_search() {
 			if [ $current_unmatched_keyword_index -gt 0 ]
 			then
 				# always return absolute path and unmatched keyword index.
-				local current_unmatched_keyword_sequence="${keywords[@]:0:${current_unmatched_keyword_index}}"
-				gotoh_verbose "We were able to match up to '${current_unmatched_keyword_sequence// / -> }'." # diagnostic
+				gotoh_verbose "We were able to match up to '${previous_matched_keyword_sequence// / -> }'." # diagnostic
 				echo "${last_match_absolute_path}"
 				return $current_unmatched_keyword_index
-			fi
-			
+			else
 			# else, this means even the first keyword wasn't matched, so we return unmatched index without echoing an absolute path
-			gotoh_verbose "We did not find any match for the first keyword '${keywords[0]}' in goto.json" # diagnostic
-			return $current_unmatched_keyword_index
+				gotoh_verbose "We did not find any match for the first keyword '${keywords[0]}' in goto.json" # diagnostic
+				return $current_unmatched_keyword_index
+			fi
 
 		# - single match jssm -
 		# elif single match, update absolute path and let the loop continue building the filter on the next iteration.
@@ -1042,7 +1053,8 @@ gotoh_recursive_json_search() {
 		then
 			# get object for future use
 			#   get absolute path
-			# >&2 echo "path(${current_objects_filter})|.[0]" # diagnostic
+			gotoh_verbose "Single match for current keyword sequence '${current_matched_keyword_sequence// / -> }'"
+			# >&2 echo path(${current_objects_filter})|.[0]" # diagnostic
 			last_match_absolute_path="$( jq "path(${current_objects_filter})" "${gotov_json_filepath}" )"
 
 		# - multiple matches jsmm -
@@ -1050,6 +1062,8 @@ gotoh_recursive_json_search() {
 		#   also, no matter what, we MUST echo either 'multiple' or an absolute path from any exit under this condition
 		elif [ "${current_number_of_matches}" -gt 1 ]
 		then
+			gotoh_verbose "You have entered a multi-match situation with $current_number_of_matches matches."
+
 			# check multipath setting
 			local print_all_paths=false
 
@@ -1078,14 +1092,14 @@ gotoh_recursive_json_search() {
 					echo 'multiple'
 					print_all_paths=true
 
-				# elif exactly one match, echo it. also increment unmatched keyword index and return that. 
+				# elif exactly one match, continue with the bigger loop. Do NOT exit just yet.
 				elif [ "$under_threshold_path_count" -eq 1 ]
 				then
 					local under_threshold_single_match_path_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|.[0]"
 					local under_threshold_single_match_path="$( jq "${under_threshold_single_match_path_filter}" "${gotov_json_filepath}" )"
-					echo "${under_threshold_single_match_path}"
-					(( current_unmatched_keyword_index ++ ))
-					return $current_unmatched_keyword_index
+					# (( current_unmatched_keyword_index ++ ))
+					# echo "${under_threshold_single_match_path}"
+					# return $current_unmatched_keyword_index
 
 				# elif more than one match, display all paths
 				elif [ "$under_threshold_path_count" -gt 1 ]
@@ -1138,13 +1152,8 @@ gotoh_recursive_json_search() {
 				# return
 				return $current_number_of_matches
 
-			# else, show paths remains false, yet we haven't processed it
-			else
-				gotoh_verbose "For some reason, we are told not to show the paths, yet we also haven't returned some single path." "This shouldn't happen." "Please report this bug to us."
-				return $gotocode_unknown
-			
-			# end display paths condition
-			fi 
+			# else, show paths remains false, yet we haven't processed it. we'll continue with the next iteration of the big loop.
+			fi # end display paths condition
 		# else, we have a negative number of matches of the keyword sequence.
 		else
 			gotoh_verbose "For some reason, we found '${current_number_of_matches}' matches, which shouldn't happen."
@@ -1155,8 +1164,11 @@ gotoh_recursive_json_search() {
 	# if all keywords have been successfully matched, return the absolute path
 	if [ "$current_unmatched_keyword_index" -ge "$number_of_keywords" ]
 	then
+		gotoh_verbose "All keywords have been successfully matched." "The current unmatched keyword index, $current_unmatched_keyword_index, is greater than the number of keywords, $number_of_keywords" "The last match absolute path is:" "$last_match_absolute_path"
 		echo "$last_match_absolute_path"
 		return $current_unmatched_keyword_index
+	else
+		gotoh_verbose "Something is wrong here. We should have returned earlier."
 	fi
 }
 
