@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.6-a.0+20230129191515"
+gotov_semver="v0.5.6-a.1+20230129192038"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -968,8 +968,6 @@ gotoh_print_path() {
 #   A (-> ...) -> B (-> ...) -> C goes to the shortcut.
 #   returns according to Output specified above
 gotoh_recursive_json_search() {
-	gotoh_verbose "You have entered rcjs."
-
 	# set up input variables
 	local subset_option="$1"
 	
@@ -1097,9 +1095,7 @@ gotoh_recursive_json_search() {
 				then
 					local under_threshold_single_match_path_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|.[0]"
 					local under_threshold_single_match_path="$( jq "${under_threshold_single_match_path_filter}" "${gotov_json_filepath}" )"
-					# (( current_unmatched_keyword_index ++ ))
-					# echo "${under_threshold_single_match_path}"
-					# return $current_unmatched_keyword_index
+					last_match_absolute_path="${under_threshold_single_match_path}"
 
 				# elif more than one match, display all paths
 				elif [ "$under_threshold_path_count" -gt 1 ]
