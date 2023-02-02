@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.7-a.0+20230202180530"
+gotov_semver="v0.5.7-a.1+20230202180907"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -3157,10 +3157,10 @@ gotoui_goto() {
 		gotolf_current_find_command() { 
 			if [ "$gotov_filesystemFuzzySearch_setting" = "on" ]
 			then
-				find "${dir_in_which_to_look}" -type d -iname "*${current_keyword}*"
+				find "${dir_in_which_to_look}" -iname "*${current_keyword}* -user "$USER" -not -path '*/.*'"
 			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
 			then
-				find "${dir_in_which_to_look}" -name "${current_keyword}"
+				find "${dir_in_which_to_look}" -name "${current_keyword} -user "$USER" -not -path '*/.*'"
 			else
 				gotoh_verbose "Error: unknown filesystemFuzzySearch setting '${gotov_filesystemFuzzySearch_setting}'"
 				return $gotocode_unknown_setting
