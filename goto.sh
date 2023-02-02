@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.6-a.1+20230129192038"
+gotov_semver="v0.5.7-a.0+20230202180530"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -685,7 +685,7 @@ gotov_settings_contents[gotov_showChildren]="$( gotoh_extract_substring "${gotov
 gotov_filesystemFuzzySearch=8
 gotov_settings_options[gotov_filesystemFuzzySearch]="on;off"
 gotov_settings_keywords[gotov_filesystemFuzzySearch]="filesystemFuzzySearch"
-gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If off, it uses exact search."
+gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search, but only with directories. If off, it uses exact search, but can match files."
 gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "0" )"
 
 # == set up goto.json, also in destination directory stjs ==
@@ -3157,7 +3157,7 @@ gotoui_goto() {
 		gotolf_current_find_command() { 
 			if [ "$gotov_filesystemFuzzySearch_setting" = "on" ]
 			then
-				find "${dir_in_which_to_look}" -iname "*${current_keyword}*"
+				find "${dir_in_which_to_look}" -type d -iname "*${current_keyword}*"
 			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
 			then
 				find "${dir_in_which_to_look}" -name "${current_keyword}"
