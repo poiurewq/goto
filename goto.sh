@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.7-a.1+20230202180907"
+gotov_semver="v0.5.7-a.2+20230202181252"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -685,7 +685,7 @@ gotov_settings_contents[gotov_showChildren]="$( gotoh_extract_substring "${gotov
 gotov_filesystemFuzzySearch=8
 gotov_settings_options[gotov_filesystemFuzzySearch]="on;off"
 gotov_settings_keywords[gotov_filesystemFuzzySearch]="filesystemFuzzySearch"
-gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search, but only with directories. If off, it uses exact search, but can match files."
+gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search. If off, it uses exact search. In both, goto only matches non-hidden files / dirs owned by the current user."
 gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "0" )"
 
 # == set up goto.json, also in destination directory stjs ==
@@ -1781,7 +1781,7 @@ gotoui_create() {
 			matched_absolute_path="$( gotoh_recursive_json_search -sc ${parent_keywords[@]} )"
 			if [ -z "$matched_absolute_path" ] || [ "$matched_absolute_path" = "multiple" ]
 			then
-				gotoh_output "No unique match found for parent."
+				gotoh_output "No match found for parent."
 				return $gotocode_no_unique_match
 			fi
 
@@ -2020,7 +2020,7 @@ gotoui_create() {
 		matched_absolute_path="$( gotoh_recursive_json_search -sc ${parent_keywords[@]} )"
 		if [ -z "$matched_absolute_path" ] || [ "$matched_absolute_path" = "multiple" ]
 		then
-			gotoh_output "No unique match found for parent."
+			gotoh_output "No match found for parent."
 			return $gotocode_no_unique_match
 		
 		# else, unique match, then create.
@@ -2203,7 +2203,7 @@ gotoui_update() {
 			#   if not unique match, then cannot read.
 			if [ -z "$matched_absolute_path" ] || [ "$matched_absolute_path" = "multiple" ]
 			then
-				gotoh_output "No unique match found."
+				gotoh_output "No match found."
 				return $gotocode_no_unique_match
 			fi
 
