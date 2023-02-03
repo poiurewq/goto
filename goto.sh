@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.7-a.2+20230202181252"
+gotov_semver="v0.5.7-a.3+20230202200226"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -3157,10 +3157,10 @@ gotoui_goto() {
 		gotolf_current_find_command() { 
 			if [ "$gotov_filesystemFuzzySearch_setting" = "on" ]
 			then
-				find "${dir_in_which_to_look}" -iname "*${current_keyword}* -user "$USER" -not -path '*/.*'"
+				find "${dir_in_which_to_look}" -iname "*${current_keyword}*" -user "$USER" -not -path '*/.*'
 			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
 			then
-				find "${dir_in_which_to_look}" -name "${current_keyword} -user "$USER" -not -path '*/.*'"
+				find "${dir_in_which_to_look}" -name "${current_keyword}" -user "$USER" -not -path '*/.*'
 			else
 				gotoh_verbose "Error: unknown filesystemFuzzySearch setting '${gotov_filesystemFuzzySearch_setting}'"
 				return $gotocode_unknown_setting
@@ -3168,6 +3168,7 @@ gotoui_goto() {
 		}
 
 		# count number of finds
+		## note that find command needs to be run twice, since the match count needs to be done before being stored in a variable, which collapses the newlines
 		current_find_wcl_output="$( gotolf_current_find_command | wc -l )" || return $?
 		current_find_count="$( echo "${current_find_wcl_output}" | tr -d ' ' )"
 
