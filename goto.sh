@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.7-a.3+20230202200226"
+gotov_semver="v0.5.8-a.0+20230206152757"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -685,7 +685,7 @@ gotov_settings_contents[gotov_showChildren]="$( gotoh_extract_substring "${gotov
 gotov_filesystemFuzzySearch=8
 gotov_settings_options[gotov_filesystemFuzzySearch]="on;off"
 gotov_settings_keywords[gotov_filesystemFuzzySearch]="filesystemFuzzySearch"
-gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search. If off, it uses exact search. In both, goto only matches non-hidden files / dirs owned by the current user."
+gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search. If off, it uses exact search unless the keyword is in the form '/keyword/', in which case it is similar to fuzzy search for that term. In both, goto only matches non-hidden files / dirs owned by the current user."
 gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "0" )"
 
 # == set up goto.json, also in destination directory stjs ==
@@ -3160,7 +3160,15 @@ gotoui_goto() {
 				find "${dir_in_which_to_look}" -iname "*${current_keyword}*" -user "$USER" -not -path '*/.*'
 			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
 			then
-				find "${dir_in_which_to_look}" -name "${current_keyword}" -user "$USER" -not -path '*/.*'
+				local re_fuzzy='^/.*/$'
+				if [[ "${current_keyword}" =~ "$re_fuzzy" ]]
+				then
+					local fuzzy_keyword="${current_keyword#/}"
+					fuzzy_keyword="${fuzzy_keyword%/}"
+					find "${dir_in_which_to_look}" -iname "*${fuzzy_keyword}*" -user "$USER" -not -path '*/.*'
+				else
+					find "${dir_in_which_to_look}" -name "${current_keyword}" -user "$USER" -not -path '*/.*'
+				fi
 			else
 				gotoh_verbose "Error: unknown filesystemFuzzySearch setting '${gotov_filesystemFuzzySearch_setting}'"
 				return $gotocode_unknown_setting
