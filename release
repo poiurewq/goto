@@ -18,3 +18,4 @@ build_metadata_sed_string='s@^\(gotov_semver=\"v[0-9].[0-9].[0-9]-[a|b].[0-9]\+\
 build_metadata_sed_string+="${build_metadata}"
 build_metadata_sed_string+='"@'
 sed -i '' "${build_metadata_sed_string}" goto.sh
+awk -F'=' '/gotov_semver=/ { print $2 }' goto.sh

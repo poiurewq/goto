@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.8-a.0+20230206152757"
+gotov_semver="v0.5.9-a.0+20230209223834"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -624,7 +624,7 @@ gotov_settings_contents[gotov_jsonPartialMatch]="$( gotoh_extract_substring "${g
 gotov_filesystemPartialMatch=2
 gotov_settings_options[gotov_filesystemPartialMatch]="on;off"
 gotov_settings_keywords[gotov_filesystemPartialMatch]="filesystemPartialMatch"
-gotov_settings_descriptions[gotov_filesystemPartialMatch]="Whether to go if only a part of the keyword sequence matches when calling find() in filesystem, or directly quit."
+gotov_settings_descriptions[gotov_filesystemPartialMatch]="When the keyword sequence is not fully consumed during filesystem match, decides whether to go to a partial match if that is found. Only affects instances in which the match is a directory. If it is a file, always directly go there."
 gotov_settings_contents[gotov_filesystemPartialMatch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemPartialMatch]}" ';' "0" )"
 
 # verboseOutput: setting for whether to output in a verbose manner to stderr. helpful for debugging.
@@ -3160,8 +3160,8 @@ gotoui_goto() {
 				find "${dir_in_which_to_look}" -iname "*${current_keyword}*" -user "$USER" -not -path '*/.*'
 			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
 			then
-				local re_fuzzy='^/.*/$'
-				if [[ "${current_keyword}" =~ "$re_fuzzy" ]]
+				local re_fuzzy="^/.*/$"
+				if [[ "${current_keyword}" =~ $re_fuzzy ]]
 				then
 					local fuzzy_keyword="${current_keyword#/}"
 					fuzzy_keyword="${fuzzy_keyword%/}"
@@ -3229,29 +3229,12 @@ gotoui_goto() {
 		# elif a single match, update the directory in which to look and let the loop continue.
 		elif [ "$current_find_count" -eq 1 ]
 		then
-			# if it's a file, it's a terminal path. 
+			# if it's a file, it's a terminal path. Open it regardless of filesystemPartialMatch setting.
 			if [ -f "$current_find_result" ]
 			then
 				gotoh_verbose "We found a file at '$current_find_result'"
-				
-				# depending on filesystemPartialMatch, either go there or not.
-				# if on, go.
-				if [ "$gotov_filesystemPartialMatch_setting" = "on" ]
-				then
-					gotoh_go "f" "$current_find_result"
-					return $gotocode_partial_success
-				
-				# elif off, quit.
-				elif [ "$gotov_filesystemPartialMatch_setting" = "off" ]
-				then
-					gotoh_verbose "Because filesystemPartialMatch = off, we will not go there directly." "Feel free to open it yourself."
-					return $gotocode_cannot_search_further_in_filesystem
-
-				# else unknown setting
-				else
-					gotoh_verbose "Unknown filesystemPartialMatch setting '${gotov_filesystemPartialMatch_setting}'." "This should not occur." "Please report this bug to us."
-					return $gotocode_unknown
-				fi
+				gotoh_go "f" "$current_find_result"
+				return $gotocode_partial_success
 
 			# elif it's a dir, set the next iteration's directory in which to look.
 			elif [ -d "$current_find_result" ]
