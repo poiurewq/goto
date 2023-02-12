@@ -4,6 +4,8 @@
 
 For a quick overview of goto, [check out this demo video](https://youtu.be/Vr2zBbkXY30).
 
+Found a bug, have a suggestion, or want to collaborate? [Fill out this form](https://forms.gle/HEkfcpYFhYp9iyjJA)!
+
 To view the public API, set up goto on your computer, then type `goto --help` for all options.
 
 ## Setting up goto
