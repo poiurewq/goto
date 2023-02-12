@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.9-a.1+20230212165331"
+gotov_semver="v0.5.9-a.2+20230212171042"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -686,7 +686,7 @@ gotov_filesystemFuzzySearch=8
 gotov_settings_options[gotov_filesystemFuzzySearch]="on;off"
 gotov_settings_keywords[gotov_filesystemFuzzySearch]="filesystemFuzzySearch"
 gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search. If off, it uses exact search unless the keyword is in the form '/keyword/', in which case it is similar to fuzzy search for that term. In both, goto only matches non-hidden files / dirs owned by the current user."
-gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "0" )"
+gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "1" )"
 
 # == set up goto.json, also in destination directory stjs ==
 gotov_json_filename="goto.json"
