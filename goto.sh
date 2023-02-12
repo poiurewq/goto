@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.9-a.0+20230209223834"
+gotov_semver="v0.5.9-a.1+20230212165331"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -2533,8 +2533,9 @@ gotoui_update() {
 					field_specifier_word="destination"
 				fi
 				# invoke rcjs to find unique match under shortcuts
+				## make sure ${keywords[@]} isn't double-quoted, as that would convert the keywords list into a single keyword.
 				local matched_absolute_path
-				matched_absolute_path="$( gotoh_recursive_json_search "-sc" "${keywords[@]}" )"
+				matched_absolute_path="$( gotoh_recursive_json_search "-sc" ${keywords[@]} )"
 
 				# process the rcjs results
 				# if not single match, then cannot read.
