@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.9-a.2+20230212171042"
+gotov_semver="v0.5.9-a.3+20230219214441"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1214,7 +1214,7 @@ gotoh_go() {
 				gotoh_verbose "Destination file '$destination' not found."
 			fi
 			case "$destination" in
-				*.md|*.json|*.sh) 
+				*.md|*.json|*.sh|*.tsv) 
 					case "$gotov_codeOpener_setting" in
 						vim) vim "$destination" ;;
 						vscode) open -a 'Visual Studio Code' "$destination" ;;
@@ -2027,7 +2027,7 @@ gotoui_create() {
 		else
 			local matched_keyword_path="$( gotoh_print_path "${matched_absolute_path}" )"
 			gotoh_create "$matched_absolute_path" "$keyword" "$description" "$object_type" "$destination" \
-					&& gotoh_output "Successfully created shortcut '${matched_keyword_path} -> ${keyword}"
+					&& gotoh_output "Successfully created shortcut '${matched_keyword_path} -> ${keyword}'"
 			return $gotocode_success
 		fi
 	
