@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.9-a.3+20230219214441"
+gotov_semver="v0.5.10-a.0+20230221000504"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -3156,6 +3156,14 @@ gotoui_goto() {
 
 		# build find command
 		gotolf_current_find_command() { 
+			# first process the '!' filesystem specifier
+			local re_filesys='^!.*$'
+			if [[ "${current_keyword}" =~ $re_filesys ]]
+			then
+				current_keyword="${current_keyword#\!}"
+			fi
+
+			# next, depending on fuzzy search setting, do fuzzy search or watch out for /fuzzy/ specifier
 			if [ "$gotov_filesystemFuzzySearch_setting" = "on" ]
 			then
 				find "${dir_in_which_to_look}" -iname "*${current_keyword}*" -user "$USER" -not -path '*/.*'

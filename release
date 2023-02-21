@@ -14,7 +14,7 @@ sed -i '' 's@gotov_alias_filepath=~/".bash_ccm/sccm.sh"@gotov_alias_filepath=~/"
 sed -i '' 's@^# FIRSTTIME=FALSE$@# FIRSTTIME=TRUE@' goto.sh
 # Update build metadata in the semver variable
 build_metadata=$( date '+%Y%m%d%H%M%S' )
-build_metadata_sed_string='s@^\(gotov_semver=\"v[0-9].[0-9].[0-9]-[a|b].[0-9]\+\).*$@\1'
+build_metadata_sed_string='s@^\(gotov_semver=\"v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*-[a|b]\.[0-9][0-9]*+\).*$@\1'
 build_metadata_sed_string+="${build_metadata}"
 build_metadata_sed_string+='"@'
 sed -i '' "${build_metadata_sed_string}" goto.sh
