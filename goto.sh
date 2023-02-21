@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.10-a.0+20230221000504"
+gotov_semver="v0.5.10-a.1+20230221001406"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -351,6 +351,12 @@ CRUD usage: goto [options]
       
       # delete the shortcut represented by the keyword 'keys' as well as its children.
         goto -dr 'keys'
+
+      # : forces filesystem match
+        goto parent :file
+
+      # /key/ forces fuzzy match
+        goto parent /fuzzy/
   
   interactive options:
     -b | --browse [-sc]
@@ -3156,11 +3162,11 @@ gotoui_goto() {
 
 		# build find command
 		gotolf_current_find_command() { 
-			# first process the '!' filesystem specifier
-			local re_filesys='^!.*$'
+			# first process the ':' filesystem specifier (remove it if it exists)
+			local re_filesys='^:.*$'
 			if [[ "${current_keyword}" =~ $re_filesys ]]
 			then
-				current_keyword="${current_keyword#\!}"
+				current_keyword="${current_keyword#:}"
 			fi
 
 			# next, depending on fuzzy search setting, do fuzzy search or watch out for /fuzzy/ specifier
