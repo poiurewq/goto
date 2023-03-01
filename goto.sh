@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.10-a.1+20230221001406"
+gotov_semver="v0.5.11-a.1+20230301185243"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -597,108 +597,124 @@ gotov_settings_contents=()
 
 # set up individual settings indices
 #   a bunch of settings keyword indices: used in keywords array and in actual settings json
+gotolv_setting_index=0
 
-# multipath: setting for when to display the paths when a search returns multiple paths.
+# shortcut multipath: setting for when to display the paths when a search returns multiple paths.
 #   always: always show the paths and go no further.
 #   depth >= n: if all matches have a depth greater than or equal to n (with parent-child being depth of 1), then show the paths and go no further. 
 #     the simultaneous assumption is that, if there is exactly one match with depth less than n, then go there. if there are multiple matches with depth less than n, then still display the paths.
 #   default is 'depth >= 2', which means if we have a single [depth = 1] match, we go there. else we show paths and quit.
-gotov_multipath=0
-gotov_settings_options[gotov_multipath]="always;depth >= [n]"
-gotov_settings_keywords[gotov_multipath]="multipath"
-gotov_settings_descriptions[gotov_multipath]="When multiple matches are found, this setting determines whether to display all matches and quit, or pick one match and go. 'depth >= n' means: if there is a single match at depth < n, pick it and go; else display all matches and quit. 'always' is effectively 'depth >= n' where n is infinity."
+gotov_shortcut_multipath=$((gotolv_setting_index++)) # this post-increments setting index
+gotov_settings_options[gotov_shortcut_multipath]="always;depth >= [n]"
+gotov_settings_keywords[gotov_shortcut_multipath]="sc_multipath"
+gotov_settings_descriptions[gotov_shortcut_multipath]="When multiple matches are found while traversing the shortcuts tree, this setting determines whether to display all matches and quit, or pick one match and go. 'depth >= n' means: if there is a single match at depth < n from the parent match, pick it and go; else display all matches and quit. 'always' is effectively 'depth >= n' where n is infinity."
 # default: depth >= 2
-gotolv_multipath_initial_content="$( gotoh_extract_substring "${gotov_settings_options[gotov_multipath]}" ';' "1" )"
-gotov_settings_contents[gotov_multipath]="${gotolv_multipath_initial_content/\[n\]/2}"
+gotolv_shortcut_multipath_initial_content="$( gotoh_extract_substring "${gotov_settings_options[gotov_shortcut_multipath]}" ';' "1" )"
+gotov_settings_contents[gotov_shortcut_multipath]="${gotolv_shortcut_multipath_initial_content/\[n\]/2}"
 
-# jsonPartialMatch: setting for whether to directly go if only a part of the keyword sequence matches in keywords tree
+# filesystem multipath: setting for when to display the paths when a filesystem find returns multiple paths.
+#   always: always show the paths and go no further.
+#   depth >= n: if all matches have a depth greater than or equal to n (with parent-child being depth of 1), then show the paths and go no further. 
+#     the simultaneous assumption is that, if there is exactly one match with depth less than n, then go there. if there are multiple matches with depth less than n, then still display the paths.
+#   default is 'depth >= 2', which means if we have a single [depth = 1] match, we go there. else we show paths and quit.
+gotov_filesystem_multipath=$((gotolv_setting_index++))
+gotov_settings_options[gotov_filesystem_multipath]="always;depth >= [n]"
+gotov_settings_keywords[gotov_filesystem_multipath]="fs_multipath"
+gotov_settings_descriptions[gotov_filesystem_multipath]="When multiple matches are found in filesystem, this setting determines whether to display all matches and quit, or pick one match and go. 'depth >= n' means: if there is a single match at depth < n from the parent match, pick it and go; else display all matches and quit. 'always' is effectively 'depth >= n' where n is infinity."
+# default: depth >= 2
+gotolv_filesystem_multipath_initial_content="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystem_multipath]}" ';' "1" )"
+gotov_settings_contents[gotov_filesystem_multipath]="${gotolv_filesystem_multipath_initial_content/\[n\]/2}"
+
+# shortcut_partial: setting for whether to directly go if only a part of the keyword sequence matches in shortcuts tree
 #   on means go to match even for partial match. if there's no match at all, then quit and don't continue to find.
 # 	off implies continue to find if no match or partial match.
 #   default is 'off', so we continue to find if no match.
-gotov_jsonPartialMatch=1
-gotov_settings_options[gotov_jsonPartialMatch]="on;off"
-gotov_settings_keywords[gotov_jsonPartialMatch]="jsonPartialMatch"
-gotov_settings_descriptions[gotov_jsonPartialMatch]="Whether to go to the match if only a part of the keyword sequence matches in the keywords tree, or to continue to find() with the rest of the keywords."
+gotov_shortcut_partial=$((gotolv_setting_index++))
+gotov_settings_options[gotov_shortcut_partial]="on;off"
+gotov_settings_keywords[gotov_shortcut_partial]="sc_partial"
+gotov_settings_descriptions[gotov_shortcut_partial]="Whether to go to the match if only a part of the keyword sequence matches in the keywords tree, or to continue to find() with the rest of the keywords."
 # default: off
-gotov_settings_contents[gotov_jsonPartialMatch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_jsonPartialMatch]}" ';' "1" )"
+gotov_settings_contents[gotov_shortcut_partial]="$( gotoh_extract_substring "${gotov_settings_options[gotov_shortcut_partial]}" ';' "1" )"
 
-# filesystemPartialMatch: setting for whether to directly go if only a part of the keyword sequence matches when calling find() in filesystem
+# filesystem_partial: setting for whether to directly go if only a part of the keyword sequence matches when calling find() in filesystem
 # 	on means goto match even for partial match (of any filetype), or for a find match that is a file (since it's terminal).
 # 	off means quit if only partial match
 #   default is 'on', so we go to partial match.
 # default: on
-gotov_filesystemPartialMatch=2
-gotov_settings_options[gotov_filesystemPartialMatch]="on;off"
-gotov_settings_keywords[gotov_filesystemPartialMatch]="filesystemPartialMatch"
-gotov_settings_descriptions[gotov_filesystemPartialMatch]="When the keyword sequence is not fully consumed during filesystem match, decides whether to go to a partial match if that is found. Only affects instances in which the match is a directory. If it is a file, always directly go there."
-gotov_settings_contents[gotov_filesystemPartialMatch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemPartialMatch]}" ';' "0" )"
+gotov_filesystem_partial=$((gotolv_setting_index++))
+gotov_settings_options[gotov_filesystem_partial]="on;off"
+gotov_settings_keywords[gotov_filesystem_partial]="fs_partial"
+gotov_settings_descriptions[gotov_filesystem_partial]="When the keyword sequence is not fully consumed during filesystem match, decides whether to go to a partial match if that is found. Only affects instances in which the match is a directory. If it is a file, always directly go there."
+gotov_settings_contents[gotov_filesystem_partial]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystem_partial]}" ';' "0" )"
 
-# verboseOutput: setting for whether to output in a verbose manner to stderr. helpful for debugging.
+# verbose: setting for whether to output in a verbose manner to stderr. helpful for debugging.
 #   on means turn on gotoh_output
 #   off means turn off gotoh_output
 #   default is 'off'
-gotov_verboseOutput=3
-gotov_settings_options[gotov_verboseOutput]="on;off"
-gotov_settings_keywords[gotov_verboseOutput]="verboseOutput"
-gotov_settings_descriptions[gotov_verboseOutput]="Whether to output details of the program to stderr. Helpful for debugging."
-gotov_settings_contents[gotov_verboseOutput]="$( gotoh_extract_substring "${gotov_settings_options[gotov_verboseOutput]}" ';' "1" )"
+gotov_verbose=$((gotolv_setting_index++))
+gotov_settings_options[gotov_verbose]="on;off"
+gotov_settings_keywords[gotov_verbose]="verbose"
+gotov_settings_descriptions[gotov_verbose]="Whether to output details of the program to stderr. Helpful for debugging."
+gotov_settings_contents[gotov_verbose]="$( gotoh_extract_substring "${gotov_settings_options[gotov_verbose]}" ';' "1" )"
 
-# directoryOpener: setting for how to open directories.
+# dir_opener: setting for how to open directories.
 #   cd: calls 'cd', so simply changes the directory.
 #   system: calls the 'open' command, so the opener is system-dependent
 #   cdl: calls 'cd, then ls', so changes dir & displays contents.
 #   cdll: calls 'cd, then ls -l', so changes dir & displays contents in detailed format.
 #   default is 'cd'
-gotov_directoryOpener=4
-gotov_settings_options[gotov_directoryOpener]="system;cd;cdl;cdll;pushd;pushdl"
-gotov_settings_keywords[gotov_directoryOpener]="directoryOpener"
-gotov_settings_descriptions[gotov_directoryOpener]="Determines how directories are opened by default. Option 'system' means open using 'open', while 'cd' means using the cd command. Option 'cdl' means 'cd' then 'ls', while 'cdll' means 'cd' then 'ls -l'."
-gotov_settings_contents[gotov_directoryOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_directoryOpener]}" ';' "1" )"
+gotov_dir_opener=$((gotolv_setting_index++))
+gotov_settings_options[gotov_dir_opener]="system;cd;cdl;cdll;pushd;pushdl"
+gotov_settings_keywords[gotov_dir_opener]="dir_opener"
+gotov_settings_descriptions[gotov_dir_opener]="Determines how directories are opened by default. Option 'system' means open using 'open', while 'cd' means using the cd command. Option 'cdl' means 'cd' then 'ls', while 'cdll' means 'cd' then 'ls -l'."
+gotov_settings_contents[gotov_dir_opener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_dir_opener]}" ';' "1" )"
 
 
-# linkOpener: setting for how to open links.
+# link_opener: setting for how to open links.
 #   system: calls the 'open' command, so the opener is system-dependent
 #   rlist: calls 'rlist', which is a custom script I use for tracking links.
 #   default is 'system'
-gotov_linkOpener=5
-gotov_settings_options[gotov_linkOpener]="system;rlist;personal;school"
-gotov_settings_keywords[gotov_linkOpener]="linkOpener"
-gotov_settings_descriptions[gotov_linkOpener]="Determines how links are opened."
-gotov_settings_contents[gotov_linkOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_linkOpener]}" ';' "0" )"
+gotov_link_opener=$((gotolv_setting_index++))
+gotov_settings_options[gotov_link_opener]="system;rlist;personal;school"
+gotov_settings_keywords[gotov_link_opener]="link_opener"
+gotov_settings_descriptions[gotov_link_opener]="Determines how links are opened."
+gotov_settings_contents[gotov_link_opener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_link_opener]}" ';' "0" )"
 
-# codeOpener: setting for how to open code-format files: .md, .json, .sh
+# code_opener: setting for how to open code-format files: .md, .json, .sh
 #   vim: opened with vim.
 #   vscode: opened with VSCode (if it exists).
 #   default is 'vim'
-gotov_codeOpener=6
-gotov_settings_options[gotov_codeOpener]="vim;vscode"
-gotov_settings_keywords[gotov_codeOpener]="codeOpener"
-gotov_settings_descriptions[gotov_codeOpener]="Determines how code files are opened."
-gotov_settings_contents[gotov_codeOpener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_codeOpener]}" ';' "0" )"
+gotov_code_opener=$((gotolv_setting_index++))
+gotov_settings_options[gotov_code_opener]="vim;vscode"
+gotov_settings_keywords[gotov_code_opener]="code_opener"
+gotov_settings_descriptions[gotov_code_opener]="Determines how code files are opened."
+gotov_settings_contents[gotov_code_opener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_code_opener]}" ';' "0" )"
 
-# showChildren: setting for whether goto --read shows the children of the desired shortcut.
+# show_children: setting for whether goto --read shows the children of the desired shortcut.
 #   on / off
 #   default is 'off'
-gotov_showChildren=7
-gotov_settings_options[gotov_showChildren]="on;off"
-gotov_settings_keywords[gotov_showChildren]="showChildren"
-gotov_settings_descriptions[gotov_showChildren]="Determines whether goto -r | goto --read shows the children of the desired shortcut."
-gotov_settings_contents[gotov_showChildren]="$( gotoh_extract_substring "${gotov_settings_options[gotov_showChildren]}" ';' "1" )"
+gotov_show_children=$((gotolv_setting_index++))
+gotov_settings_options[gotov_show_children]="on;off"
+gotov_settings_keywords[gotov_show_children]="show_children"
+gotov_settings_descriptions[gotov_show_children]="Determines whether goto -r | goto --read shows the children of the desired shortcut."
+gotov_settings_contents[gotov_show_children]="$( gotoh_extract_substring "${gotov_settings_options[gotov_show_children]}" ';' "1" )"
 
-# filesystemFuzzySearch: setting for whether filesystem search uses exact or fuzzy search on the keywords.
+# fs_fuzzy: setting for whether filesystem search uses exact or fuzzy search on the keywords.
 #   on / off
 #   default is 'on'
-gotov_filesystemFuzzySearch=8
-gotov_settings_options[gotov_filesystemFuzzySearch]="on;off"
-gotov_settings_keywords[gotov_filesystemFuzzySearch]="filesystemFuzzySearch"
-gotov_settings_descriptions[gotov_filesystemFuzzySearch]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search. If off, it uses exact search unless the keyword is in the form '/keyword/', in which case it is similar to fuzzy search for that term. In both, goto only matches non-hidden files / dirs owned by the current user."
-gotov_settings_contents[gotov_filesystemFuzzySearch]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystemFuzzySearch]}" ';' "1" )"
+gotov_fs_fuzzy=$((gotolv_setting_index++))
+gotov_settings_options[gotov_fs_fuzzy]="on;off"
+gotov_settings_keywords[gotov_fs_fuzzy]="fs_fuzzy"
+gotov_settings_descriptions[gotov_fs_fuzzy]="Determines whether filesystem search uses fuzzy search on the keywords. If on, it uses case-insensitive partial search. If off, it uses exact search unless the keyword is in the form '/keyword/', in which case it is similar to fuzzy search for that term. In both, goto only matches non-hidden files / dirs owned by the current user."
+gotov_settings_contents[gotov_fs_fuzzy]="$( gotoh_extract_substring "${gotov_settings_options[gotov_fs_fuzzy]}" ';' "1" )"
 
 # == set up goto.json, also in destination directory stjs ==
 gotov_json_filename="goto.json"
 gotov_json_filepath="$gotov_dest_dirpath/$gotov_json_filename"
 
-unset -v gotolv_multipath_initial_content
+unset -v gotolv_shortcut_multipath_initial_content
+unset -v gotolv_filesystem_multipath_initial_content
+unset -v gotolv_setting_index
 
 # if the json file exists, don't do anything. else, create one.
 if ! [ -f "$gotov_json_filepath" ]
@@ -754,18 +770,19 @@ gotov_settings_filter='.[0].list'
 gotov_settings_array="$( jq -c "$gotov_settings_filter" "$gotov_json_filepath" )"
 
 # obtain individual settings
-gotov_multipath_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_multipath]}\")|.content" )"
-gotov_jsonPartialMatch_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_jsonPartialMatch]}\")|.content" )"
-gotov_filesystemPartialMatch_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_filesystemPartialMatch]}\")|.content" )"
-gotov_verboseOutput_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_verboseOutput]}\")|.content" )"
-gotov_directoryOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_directoryOpener]}\")|.content" )"
-gotov_linkOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_linkOpener]}\")|.content" )"
-gotov_codeOpener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_codeOpener]}\")|.content" )"
-gotov_showChildren_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_showChildren]}\")|.content" )"
-gotov_filesystemFuzzySearch_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_filesystemFuzzySearch]}\")|.content" )"
+gotov_shortcut_multipath_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_shortcut_multipath]}\")|.content" )"
+gotov_filesystem_multipath_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_filesystem_multipath]}\")|.content" )"
+gotov_shortcut_partial_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_shortcut_partial]}\")|.content" )"
+gotov_filesystem_partial_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_filesystem_partial]}\")|.content" )"
+gotov_verbose_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_verbose]}\")|.content" )"
+gotov_dir_opener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_dir_opener]}\")|.content" )"
+gotov_link_opener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_link_opener]}\")|.content" )"
+gotov_code_opener_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_code_opener]}\")|.content" )"
+gotov_show_children_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_show_children]}\")|.content" )"
+gotov_fs_fuzzy_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_fs_fuzzy]}\")|.content" )"
 
 # make necessary variable updates
-GOTO_VERBOSE_SETTING="${gotov_verboseOutput_setting}"
+GOTO_VERBOSE_SETTING="${gotov_verbose_setting}"
 
 ######################################################
 ## check invariants before CRUD or goto main chkinv ##
@@ -964,7 +981,7 @@ gotoh_print_path() {
 #     If multiple matches, return the number of matches.
 # Invariants
 #   has access to a properly initialized gotov_json_filepath
-#   has access to a properly initialized gotov_multipath_setting
+#   has access to a properly initialized gotov_shortcut_multipath_setting
 #   the -st/-sc input is always in the first position.
 # Dependencies
 #   gotoh_output
@@ -1033,12 +1050,12 @@ gotoh_recursive_json_search() {
 		# - 0 matches jsnm -
 		# if no match, then check
 		#   if there was a match in the previous sequence, decide whether to go to partial match according to
-		#   jsonPartialMatch setting or quit.
+		#   shortcut_partial setting or quit.
 		if [ "${current_number_of_matches}" -eq 0 ]
 		then
 			
 			# if keyword sequence is longer than 1, that means we had a partial match up to the previous keyword.
-			# as long as there's a partial match, regardless of jsonPartialMatch setting, we'll echo the partially matched path.
+			# as long as there's a partial match, regardless of shortcut_partial setting, we'll echo the partially matched path.
 			if [ $current_unmatched_keyword_index -gt 0 ]
 			then
 				# always return absolute path and unmatched keyword index.
@@ -1062,25 +1079,25 @@ gotoh_recursive_json_search() {
 			last_match_absolute_path="$( jq "path(${current_objects_filter})" "${gotov_json_filepath}" )"
 
 		# - multiple matches jsmm -
-		# elif multiple matches, depending on multipath setting, directly return absolute path or print all paths and quit.
+		# elif multiple matches, depending on shortcut multipath setting, directly return absolute path or print all paths and quit.
 		#   also, no matter what, we MUST echo either 'multiple' or an absolute path from any exit under this condition
 		elif [ "${current_number_of_matches}" -gt 1 ]
 		then
 			gotoh_verbose "You have entered a multi-match situation with $current_number_of_matches matches."
 
-			# check multipath setting
+			# check shortcut multipath setting
 			local print_all_paths=false
 
 			#   if always, then show
-			if [ "$gotov_multipath_setting" = "always" ]
+			if [ "$gotov_shortcut_multipath_setting" = "always" ]
 			then
 				echo 'multiple'
 				print_all_paths=true
-			#   else, examine the depths according to the rule (see multipath setting description)
+			#   else, examine the depths according to the rule (see shortcut multipath setting description)
 			else
 				# process the depth setting
-				local multipath_setting_depth="${gotov_multipath_setting/depth >= /}"
-				local path_length_threshold=$(( multipath_setting_depth * 2 ))
+				local shortcut_multipath_setting_depth="${gotov_shortcut_multipath_setting/depth >= /}"
+				local path_length_threshold=$(( shortcut_multipath_setting_depth * 2 ))
 
 				# count the number of paths that are below threshold
 				#   build a jq filter that determines the number of paths of length < 2n (depth = n)
@@ -1117,14 +1134,14 @@ gotoh_recursive_json_search() {
 					echo 'multiple'
 					return $current_number_of_matches
 				
-				# end if-else condition on number of paths within threshold, under the multipath condition
+				# end if-else condition on number of paths within threshold, under the shortcut multipath condition
 				fi 
 			
-			# end if-else condition on multipath setting being "always" or not
+			# end if-else condition on shortcut multipath setting being "always" or not
 			fi
 
-			# note that we are still under the multipath setting right now.
-			# if we confirm that multiple paths satisfy the criteria in the multipath setting, we display the paths and quit.
+			# note that we are still under the shortcut multipath setting right now.
+			# if we confirm that multiple paths satisfy the criteria in the shortcut multipath setting, we display the paths and quit.
 			if [ "$print_all_paths" = true ]
 			then
 				# display keyword sequence thus far.
@@ -1204,14 +1221,14 @@ gotoh_go() {
 			then
 				gotoh_verbose "Destination dir '$destination' not found."
 			fi
-			case "$gotov_directoryOpener_setting" in
+			case "$gotov_dir_opener_setting" in
 				system) open "$destination" ;;
 				cd) cd "$destination" ;;
 				cdl) cd "$destination"; ls ;;
 				cdll) cd "$destination"; ls -l ;;
 				pushd) pushd "$destination" ;;
 				pushdl) pushd "$destination"; ls -l ;;
-				*) gotoh_output "Unknown directory opener setting '${gotov_directoryOpener_setting}'" ;;
+				*) gotoh_output "Unknown directory opener setting '${gotov_dir_opener_setting}'" ;;
 			esac
 			;;
 		f)
@@ -1221,17 +1238,17 @@ gotoh_go() {
 			fi
 			case "$destination" in
 				*.md|*.json|*.sh|*.tsv) 
-					case "$gotov_codeOpener_setting" in
+					case "$gotov_code_opener_setting" in
 						vim) vim "$destination" ;;
 						vscode) open -a 'Visual Studio Code' "$destination" ;;
-						*) gotoh_output "Unknown code opener setting '${gotov_codeOpener_setting}'" ;;
+						*) gotoh_output "Unknown code opener setting '${gotov_code_opener_setting}'" ;;
 					esac					
 					;;
 				*) open "$destination" ;;
 			esac
 			;;
 		l) 
-			case "$gotov_linkOpener_setting" in
+			case "$gotov_link_opener_setting" in
 				system)
 					local link_regex='^https?://' link_prefix='https://'
 					# if the destination isn't linked, add a prefix
@@ -2052,7 +2069,7 @@ gotoui_create() {
 #   if keywords match, print neatly formatted information of match
 # Behavior
 #   uses rcjs to search for match
-#   output according to Output rules above & showChildren setting
+#   output according to Output rules above & show_children setting
 # Invariants
 #   input must contain -sc / -st at the start
 #   input must have at least one keyword
@@ -2095,16 +2112,16 @@ gotoui_read() {
 		gotoh_output "No unique match found."
 		return $gotocode_no_unique_match
 	
-	# else, single match, then read based on showChildren setting.
+	# else, single match, then read based on show_children setting.
 	else
-		if [ "$gotov_showChildren_setting" = "off" ]
+		if [ "$gotov_show_children_setting" = "off" ]
 		then
 			gotoh_read "${subset_option}" "$matched_absolute_path"
-		elif [ "$gotov_showChildren_setting" = "on" ]
+		elif [ "$gotov_show_children_setting" = "on" ]
 		then
 			gotoh_print_family "${subset_option}" "$matched_absolute_path"
 		else
-			gotoh_output "Invalid showChildren setting '${gotov_showChildren_setting}'"
+			gotoh_output "Invalid show_children setting '${gotov_show_children_setting}'"
 			return $gotocode_unknown_setting
 		fi
 	fi
@@ -2995,33 +3012,33 @@ esac
 # Behavior
 #   Recursively looks for a match to the given keyword sequence under shortcuts
 #   using gotoh_recursive_json_search (rcjs) with -sc option.
-#     If rcjs echoes nada, then there's no match for the first keyword. Depending on jsonPartialMatch, decide whether to continue searching in filesystem.
+#     If rcjs echoes nada, then there's no match for the first keyword. Depending on shortcut_partial, decide whether to continue searching in filesystem.
 #     Elif rcjs echoes 'multiple', then the multiple paths have already been displayed. The error code is irrelevant in that case as well.
 #     Else rcjs echoes anything else, that should be an absolute path. Then the return code matters.
 #       If return code is the same as the number of keywords, that means all keywords have been consumed, so we go.
-#       Elif return code is less than number of keywords, then depends on jsonPartialMatch setting
-#         If jsonPartialMatch is on, then go.
-#         Else jsonPartialMatch isn't on, then process the rest of the unmatched keywords using recursive filesystem search.
+#       Elif return code is less than number of keywords, then depends on shortcut_partial setting
+#         If shortcut_partial is on, then go.
+#         Else shortcut_partial isn't on, then process the rest of the unmatched keywords using recursive filesystem search.
 #   Recursively looks for a match to the unmatched keyword sequence under filesystem (rcfs).
 #     Invariant: If provided destination is not a dir, quit.
 #     Search for keyword until all keywords are exhausted or we quit early...
 #       If it matches a single destination...
 #         If that destination is a file...
-#           If filesystemPartialMatch is on, then open the file.
-#           If filesystemPartialMatch is off, then quit.
+#           If filesystem_partial is on, then open the file.
+#           If filesystem_partial is off, then quit.
 #         If that destination is a dir, continue searching.
 #       If it matches multiple destinations, just display them and quit.
 #       If it matches no destination at all...
 #         If it's the first keyword, then quit.
 #         If it's not the first keyword, then...
-#           If filesystemPartialMatch is on, then open the dir.
-#           If filesystemPartialMatch is off, then quit.
+#           If filesystem_partial is on, then open the dir.
+#           If filesystem_partial is off, then quit.
 #     After all keywords are exhausted, open the final matched destination.
 # Invariants
 #   input is not a CRUD option
 #   input contains at least one keyword
-#   has access to a properly initialized gotov_jsonPartialMatch_setting
-#   has access to a properly initialized gotov_filesystemPartialMatch_setting
+#   has access to a properly initialized gotov_shortcut_partial_setting
+#   has access to a properly initialized gotov_filesystem_partial_setting
 # Dependencies
 #   gotoh_output
 #   gotoh_recursive_json_search
@@ -3038,14 +3055,14 @@ gotoui_goto() {
 	# gotoh_verbose "MAP: $matched_absolute_path" "UKI: $unmatched_keyword_index" # diagnostic
 
 	# if-else the rcjs echo output.
-	# if nada, then no match or a partial match when jsonPartialMatch = off
+	# if nada, then no match or a partial match when shortcut_partial = off
 	if [ -z "$matched_absolute_path" ]
 	then
-		# if jsonPartialMatch is off, then fall through to continue to file system search.
-		if [ "$gotov_jsonPartialMatch_setting" = "off" ]
+		# if shortcut_partial is off, then fall through to continue to file system search.
+		if [ "$gotov_shortcut_partial_setting" = "off" ]
 		then
 			:
-		# else, jsonPartialMatch is on, so quit.
+		# else, shortcut_partial is on, so quit.
 		else
 			gotoh_output "No full match found."
 			return $gotocode_no_match_at_all
@@ -3076,25 +3093,25 @@ gotoui_goto() {
 			gotoh_open_path "${matched_absolute_path}"
 			return $gotocode_success
 		
-		#   elif we have a partial match, follow jsonPartialMatch setting.
+		#   elif we have a partial match, follow shortcut_partial setting.
 		elif [ "$unmatched_keyword_index" -lt "$number_of_keywords" ]
 		then
-			# if-else on the jsonPartialMatch setting.
+			# if-else on the shortcut_partial setting.
 			# if partial match is on, go to the absolute path.
-			if [ "$gotov_jsonPartialMatch_setting" = "on" ]
+			if [ "$gotov_shortcut_partial_setting" = "on" ]
 			then
-				gotoh_verbose "Because jsonPartialMatch = on, we will go there now."
+				gotoh_verbose "Because shortcut_partial = on, we will go there now."
 				gotoh_open_path "${matched_absolute_path}"
 				return $gotocode_partial_success
 			
 			# elif partial match is off, and there are still unmatched keywords, let it fall through to search the file system after this.
-			elif [ "$gotov_jsonPartialMatch_setting" = "off" ]
+			elif [ "$gotov_shortcut_partial_setting" = "off" ]
 			then
-				gotoh_verbose "Because jsonPartialMatch = off, we will use the unmatched keywords to search in the file system."
+				gotoh_verbose "Because shortcut_partial = off, we will use the unmatched keywords to search in the file system."
 
 			# else partial match setting is wrong.
 			else
-				gotoh_verbose "Unknown jsonPartialMatch setting '$gotov_jsonPartialMatch_setting'." "This should not occur." "Please report this bug to us."
+				gotoh_verbose "Unknown shortcut_partial setting '$gotov_shortcut_partial_setting'." "This should not occur." "Please report this bug to us."
 				return $gotocode_unknown
 			fi
 		fi
@@ -3160,7 +3177,20 @@ gotoui_goto() {
 		# grab current keyword
 		current_keyword="${keywords[unmatched_keyword_index]}"
 
+		# process filesystem_multipath setting by adding an optional maxdepth flag
+		local optional_maxdepth
+		## if it's always, then the optional maxdepth flag is just nothing
+		if [ "$gotov_filesystem_multipath_setting" = "always" ]
+		then :
+		## if it's depth >= n, then the optional maxdepth is set to n-1
+		else
+			local filesystem_multipath_setting_depth="${gotov_filesystem_multipath_setting/depth >= /}"
+			local filesystem_search_maxdepth="$((filesystem_multipath_setting_depth - 1))"
+			optional_maxdepth="-maxdepth ${filesystem_search_maxdepth}"
+		fi
+
 		# build find command
+		## this command, when called from this larger function, will have access to the previously just-set optional_maxdepth variable
 		gotolf_current_find_command() { 
 			# first process the ':' filesystem specifier (remove it if it exists)
 			local re_filesys='^:.*$'
@@ -3170,22 +3200,22 @@ gotoui_goto() {
 			fi
 
 			# next, depending on fuzzy search setting, do fuzzy search or watch out for /fuzzy/ specifier
-			if [ "$gotov_filesystemFuzzySearch_setting" = "on" ]
+			if [ "$gotov_fs_fuzzy_setting" = "on" ]
 			then
-				find "${dir_in_which_to_look}" -iname "*${current_keyword}*" -user "$USER" -not -path '*/.*'
-			elif [ "$gotov_filesystemFuzzySearch_setting" = "off" ]
+				find "${dir_in_which_to_look}" -iname "*${current_keyword}*" -user "$USER" -not -path '*/.*' ${optional_maxdepth}
+			elif [ "$gotov_fs_fuzzy_setting" = "off" ]
 			then
 				local re_fuzzy="^/.*/$"
 				if [[ "${current_keyword}" =~ $re_fuzzy ]]
 				then
 					local fuzzy_keyword="${current_keyword#/}"
 					fuzzy_keyword="${fuzzy_keyword%/}"
-					find "${dir_in_which_to_look}" -iname "*${fuzzy_keyword}*" -user "$USER" -not -path '*/.*'
+					find "${dir_in_which_to_look}" -iname "*${fuzzy_keyword}*" -user "$USER" -not -path '*/.*' ${optional_maxdepth}
 				else
-					find "${dir_in_which_to_look}" -name "${current_keyword}" -user "$USER" -not -path '*/.*'
+					find "${dir_in_which_to_look}" -name "${current_keyword}" -user "$USER" -not -path '*/.*' ${optional_maxdepth}
 				fi
 			else
-				gotoh_verbose "Error: unknown filesystemFuzzySearch setting '${gotov_filesystemFuzzySearch_setting}'"
+				gotoh_verbose "Error: unknown fs_fuzzy setting '${gotov_fs_fuzzy_setting}'"
 				return $gotocode_unknown_setting
 			fi
 		}
@@ -3213,26 +3243,26 @@ gotoui_goto() {
 			# However, if we have examined more than one keyword already, that means the previous find output was a valid destination.
 			if [ "$number_of_keywords_examined_by_find" -gt 1 ]
 			then
-				# based on filesystemPartialMatch setting, either directly go to the partial result or quit.
+				# based on filesystem_partial setting, either directly go to the partial result or quit.
 				gotoh_verbose "However, we were able to match up to '${keywords[@]:0:${unmatched_keyword_index}}'" "with the directory '$dir_in_which_to_look'"
 				
-				# if-else on the filesystemPartialMatch setting.
-				# if filesystemPartialMatch is on, go to the destination.
-				if [ "$gotov_filesystemPartialMatch_setting" = "on" ]
+				# if-else on the filesystem_partial setting.
+				# if filesystem_partial is on, go to the destination.
+				if [ "$gotov_filesystem_partial_setting" = "on" ]
 				then
-					gotoh_verbose "Because filesystemPartialMatch = on, we will now go there."
+					gotoh_verbose "Because filesystem_partial = on, we will now go there."
 					# due to the case in the next if-else group, we are guaranteed to have a previous match that was a directory.
 					gotoh_go "d" "$dir_in_which_to_look"
 					return $gotocode_partial_success
 				
-				# elif filesystemPartialMatch is off, quit.
-				elif [ "$gotov_filesystemPartialMatch_setting" = "off" ]
+				# elif filesystem_partial is off, quit.
+				elif [ "$gotov_filesystem_partial_setting" = "off" ]
 				then
-					gotoh_verbose "Because filesystemPartialMatch = off, we will not go there directly." "Feel free to open it yourself."
+					gotoh_verbose "Because filesystem_partial = off, we will not go there directly." "Feel free to open it yourself."
 					# this falls through to the quit line at the end of the no match condition.
 				# else unknown setting
 				else
-					gotoh_verbose "Unknown filesystemPartialMatch setting '${gotov_filesystemPartialMatch_setting}'." "This should not occur." "Please report this bug to us."
+					gotoh_verbose "Unknown filesystem_partial setting '${gotov_filesystem_partial_setting}'." "This should not occur." "Please report this bug to us."
 					return $gotocode_unknown
 				fi
 			fi
@@ -3244,7 +3274,7 @@ gotoui_goto() {
 		# elif a single match, update the directory in which to look and let the loop continue.
 		elif [ "$current_find_count" -eq 1 ]
 		then
-			# if it's a file, it's a terminal path. Open it regardless of filesystemPartialMatch setting.
+			# if it's a file, it's a terminal path. Open it regardless of filesystem_partial setting.
 			if [ -f "$current_find_result" ]
 			then
 				gotoh_verbose "We found a file at '$current_find_result'"
@@ -3265,7 +3295,7 @@ gotoui_goto() {
 			fi
 
 		# - fsmm -
-		# elif multiple matches, print out all paths and quit.
+		# elif multiple matches, depending on filesystem_multipath, print out all paths and quit, or directly go there.
 		elif [ "$current_find_count" -gt 1 ]
 		then
 			# let the user know
