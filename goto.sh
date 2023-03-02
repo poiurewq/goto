@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.12-a.1+20230301190809"
+gotov_semver="v0.5.13-a.1+20230301202322"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1097,12 +1097,24 @@ gotoh_recursive_json_search() {
 			else
 				# process the depth setting
 				local shortcut_multipath_setting_depth="${gotov_shortcut_multipath_setting/depth >= /}"
-				local path_length_threshold=$(( shortcut_multipath_setting_depth * 2 ))
+
+				# calculate parent path length
+				local parent_path_length
+				## if last match had no match, it means this is the first keyword being matched, so don't add anything
+				if [ -z "$last_match_absolute_path" ]
+				then
+					parent_path_length=0
+				## if last match had a match, it means this has a parent, so calculate the parent path length and add it
+				else
+					parent_path_length="$(jq -n "${last_match_absolute_path}|length")"
+				fi 
+
+				# adjust path length threshold based on depth of parent object and the depth setting based on shortcut_multipath
+				local path_length_threshold=$(( parent_path_length + shortcut_multipath_setting_depth * 2 ))
 
 				# count the number of paths that are below threshold
 				#   build a jq filter that determines the number of paths of length < 2n (depth = n)
 				local under_threshold_path_count_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|length"
-				# echo "$under_threshold_path_count_filter" # diagnostic
 				#   count the number of paths (matches) that are below the depth threshold
 				local under_threshold_path_count="$( jq "${under_threshold_path_count_filter}" "${gotov_json_filepath}" )"
 
@@ -3047,7 +3059,7 @@ esac
 #         Else shortcut_partial isn't on, then process the rest of the unmatched keywords using recursive filesystem search.
 #   Recursively looks for a match to the unmatched keyword sequence under filesystem (rcfs).
 #     Invariant: If provided destination is not a dir, quit.
-#     Search for keyword until all keywords are exhausted or we quit early...
+#     Search for keyword (with maxdepth determined by filesystem_multipath) until all keywords are exhausted or we quit early...
 #       If it matches a single destination...
 #         If that destination is a file...
 #           If filesystem_partial is on, then open the file.
@@ -3063,6 +3075,7 @@ esac
 # Invariants
 #   input is not a CRUD option
 #   input contains at least one keyword
+#   has access to a properly initialized gotov_filesystem_multipath_setting
 #   has access to a properly initialized gotov_shortcut_partial_setting
 #   has access to a properly initialized gotov_filesystem_partial_setting
 # Dependencies
