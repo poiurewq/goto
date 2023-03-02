@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.13-a.1+20230301202322"
+gotov_semver="v0.5.14-a.1+20230302162714"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1702,8 +1702,9 @@ gotoh_print_family() {
 	local children_count_string="< ${children_count} children >"
 	
 	# next, convert the array into a string for easier printing
+	local children_keywords_spacing='        '
 	local children_keywords_string="${children_keywords_array[*]}"
-	children_keywords_string="${children_keywords_string// /  }"
+	children_keywords_string="${children_keywords_string// /$children_keywords_spacing}"
 
 	# center-print the children keywords
 	#   first get the number of columns
@@ -2456,12 +2457,14 @@ gotoui_update() {
 						return $gotocode_interactive_operation_cancelled
 					fi
 					# make sure that the number is a valid number and within the options range
-					if [[ "$selected_option_number" =~ $number_regex ]] && \
-						[ "$selected_option_number" -le "$setting_options_count" ]
+					if ! [[ "$selected_option_number" =~ $number_regex ]]
 					then
-						valid_selection=true
-					else
 						gotoh_output "Invalid selection: '${selected_option_number}' is not a number."
+					elif [ "$selected_option_number" -gt "$setting_options_count" ]
+					then
+						gotoh_output "Invalid selection: '${selected_option_number}' is out of range (1-$setting_options_count)."
+					else
+						valid_selection=true
 					fi
 				done
 
