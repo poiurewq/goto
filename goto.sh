@@ -134,7 +134,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.11-a.1+20230301185243"
+gotov_semver="v0.5.12-a.1+20230301190809"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -2767,13 +2767,14 @@ gotoui_browse() {
 	local subset_option="$1"
 	
 	# set up current absolute path to keep track of current node
-	local current_absolute_path
+	local current_absolute_path starting_absolute_path
 	if [ "$subset_option" = "-st" ]
 	then
-		current_absolute_path='[0]'
+		starting_absolute_path='[0]'
 	else
-		current_absolute_path='[1]'
+		starting_absolute_path='[1]'
 	fi
+	current_absolute_path="${starting_absolute_path}"
 
 	# initialize some variables to be used in while loop
 	local user_choice
@@ -2791,20 +2792,37 @@ gotoui_browse() {
 		#   display shortcut-compatible options
 		if [ "$subset_option" = "-sc" ]
 		then
-			gotoh_output "Type one of the following options, then [Enter]." \
-				"  [-c] create shortcut" \
-				"  [-d] delete shortcut" \
-				"  [-u] update shortcut" \
-				"  [-p] back to parent" \
-				"  [a child keyword]" \
-				"  [-q] quit"
+			# output options available to root shortcut
+			if [ "$current_absolute_path" = "$starting_absolute_path" ]
+			then
+				gotoh_output "Type one of the following options, then [Enter]." \
+					"  [-c] create shortcut" \
+					"  [a child keyword]" \
+					"  [-q] quit"
+			else
+				gotoh_output "Type one of the following options, then [Enter]." \
+					"  [-c] create shortcut" \
+					"  [-d] delete shortcut" \
+					"  [-u] update shortcut" \
+					"  [-p] back to parent" \
+					"  [a child keyword]" \
+					"  [-q] quit"
+			fi
 		#   display setting-compatible options
 		else
-			gotoh_output "Type one of the following options, then [Enter]." \
-				"  [-u] update setting" \
-				"  [-p] back to parent" \
-				"  [a child keyword]" \
-				"  [-q] quit"
+			# output options available to root setting
+			if [ "$current_absolute_path" = "$starting_absolute_path" ]
+			then
+				gotoh_output "Type one of the following options, then [Enter]." \
+					"  [a child keyword]" \
+					"  [-q] quit"
+			else
+				gotoh_output "Type one of the following options, then [Enter]." \
+					"  [-u] update setting" \
+					"  [-p] back to parent" \
+					"  [a child keyword]" \
+					"  [-q] quit"
+			fi
 		fi
 		
 		# obtain & process user options
@@ -2821,6 +2839,7 @@ gotoui_browse() {
 					if [ "$subset_option" != "-sc" ]
 					then
 						gotoh_output "Invalid option."
+						continue
 					else
 						user_choice_is_valid=true
 					fi
@@ -2831,9 +2850,10 @@ gotoui_browse() {
 				# delete
 				-d) 
 					# determine user choice validity
-					if [ "$subset_option" != "-sc" ]
+					if [ "$subset_option" != "-sc" ] || [ "$current_absolute_path" = "$starting_absolute_path" ]
 					then
 						gotoh_output "Invalid option."
+						continue
 					else
 						user_choice_is_valid=true
 					fi
@@ -2858,8 +2878,14 @@ gotoui_browse() {
 
 				# update
 				-u) 
-					# determine user choice validity: it's always valid
-					user_choice_is_valid=true
+					# determine user choice validity
+					if [ "$current_absolute_path" = "$starting_absolute_path" ]
+					then
+						gotoh_output "Invalid option."
+						continue
+					else
+						user_choice_is_valid=true
+					fi
 					# set the subset option to pass to ui update
 					local subset_option_for_update
 					if [ "$subset_option" = "-sc" ]
