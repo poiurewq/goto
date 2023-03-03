@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.6.1-a.1+20230303034847"
+gotov_semver="v0.6.2-a.1+20230303041215"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -677,7 +677,7 @@ gotov_settings_contents[gotov_dir_opener]="$( gotoh_extract_substring "${gotov_s
 #   rlist: calls 'rlist', which is a custom script I use for tracking links.
 #   default is 'system'
 gotov_link_opener=$((gotolv_setting_index++))
-gotov_settings_options[gotov_link_opener]="system;rlist;personal;school"
+gotov_settings_options[gotov_link_opener]="auto;rlist;personal;school"
 gotov_settings_keywords[gotov_link_opener]="link_opener"
 gotov_settings_descriptions[gotov_link_opener]="Determines how links are opened."
 gotov_settings_contents[gotov_link_opener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_link_opener]}" ';' "0" )"
@@ -1381,15 +1381,23 @@ gotoh_go() {
 			;;
 		l) 
 			case "$gotov_link_opener_setting" in
-				system)
-					local link_regex='^https?://' link_prefix='https://'
-					# if the destination isn't linked, add a prefix
-					if ! [[ "$destination" =~ $link_regex ]]
+				auto)
+					# if link has a space in it, assume it's an rlist id
+					re_sp='^.* .*$'
+					if [[ "$destination" =~ $re_sp ]]
 					then
-						destination="${link_prefix}${destination}"
+						rlist go "$destination"
+					else
+						# else run as an internet url
+						local link_regex='^https?://' link_prefix='https://'
+						# if the destination isn't linked, add a prefix
+						if ! [[ "$destination" =~ $link_regex ]]
+						then
+							destination="${link_prefix}${destination}"
+						fi
+						# open the link
+						open "${destination}"
 					fi
-					# open the link
-					open "${destination}"
 					;;
 				rlist) rlist go "$destination" ;;
 				personal) chrome --personal "$destination" ;;
