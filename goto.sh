@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.6.0-a.1+20230302222623"
+gotov_semver="v0.6.1-a.1+20230303034847"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1250,13 +1250,14 @@ gotoh_get_parent_path() {
 #   $1 = jq-style absolute path to a shortcut that has a relative path as its destination
 # Output
 #   an absolute filesystem path built from shortcut and its parents, all the way up to some absolute path.
-#   return code 0 for success, 1 for failure
+#   return code 0 for success, 1 for relative paths all the way up, 2 for when a parent up the chain is not a 'd' even thought the destinations of the shortcuts leading up to it from the starting shortcut are all relative paths.
 # Behavior
 #   Given the shortcut, returns its full filesystem absolute path
 # Invariants
 #   assumes that the absolute path is a valid shortcut
 #   assumes ability to access gotov_json_filepath
 #   assumes that the shortcut is of type 'd' or 'f', so that it has a filesystem path to begin with.
+#   assumes that the shortcut is currently going to a relative path, so whenever it encounters a parent with a non-'d' type, it quits with failure mode.
 # Dependencies
 #   gotoh_get_parent_path
 gotoh_build_absolute_filepath() {
@@ -1302,7 +1303,7 @@ gotoh_build_absolute_filepath() {
 		if [ "$parent_type" != "d" ]
 		then
 			gotoh_verbose "The parent of the shortcut at" "  ${current_jsonpath}" "isn't a directory." "This shouldn't happen." "Quit."
-			return 1
+			return 2
 		fi
 
 		# get the filepath and prepend it to the final filepath
@@ -2043,8 +2044,33 @@ gotoui_create() {
 				# only if type is dir do we do relative path substitution.
 				if [ "$matched_parent_type" = "d" ]
 				then
-					local matched_parent_destination="$( jq -r "getpath(${matched_absolute_path})|.type" "$gotov_json_filepath" )"
-					destination="${destination/}"
+					# first obtain match's destination
+					local matched_destination="$( jq -r "getpath(${matched_absolute_path})|.destination" "$gotov_json_filepath" )"
+
+					# determine absolute filepath before removing it from destination
+					local matched_absolute_filepath build_status
+					# if match's destination is absolute, directly set it to absolute filepath. if it's relative, build the absolute path first.
+					local re_absp='^\/'
+					if [[ "$matched_destination" =~ $re_absp ]]
+					then
+						matched_absolute_filepath="$matched_destination"
+						build_status=0
+					else
+						# build the match's absolute filepath
+						matched_absolute_filepath="$( gotoh_build_absolute_filepath "${matched_absolute_path}" )"
+						build_status=$?
+					fi
+
+					# remove absolute filepath from destination
+					if [ "$build_status" -eq 0 ]
+					then
+						# only if successfully built a path, do relpath reduction.
+						matched_absolute_filepath="${matched_absolute_filepath%\/}"
+						# >&2 echo "destination: $matched_absolute_filepath" # diagnostic
+						# remove the absolute filepath prefix from destination
+						destination="${destination#${matched_absolute_filepath}\/}"
+					fi
+	
 				fi
 
 
