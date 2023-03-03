@@ -60,6 +60,8 @@
 #   ppth
 #   rcsjs
 #   hgtalg
+#     parabsp
+#     cffp
 #     opdest
 #     opabsp
 # hcrui
@@ -134,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.5.14-a.1+20230302162714"
+gotov_semver="v0.6.0-a.1+20230302222623"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1033,6 +1035,7 @@ gotoh_recursive_json_search() {
 		# jq search for object(s) matching keyword
 		#   build (inner) object filter
 		#     note that \\\\ becomes \\ in the regex, which is then used to escape the pipe: \\|
+		#     this filter looks for current keyword optionally surrounded by pipes for the multi-keyword entries
 		current_objects_filter+="|recurse(.list[]?)|select(.keyword|test(\"^(.*\\\\|)?${current_keyword}(\\\\|.*)?$\"))"
 		# echo "${current_objects_filter}" # checkpoint
 
@@ -1206,6 +1209,122 @@ gotoh_recursive_json_search() {
 # == helpers for main goto ui algorithm hgtalg ==
 # These guys are used in browse, so come before the CRUD helpers.
 
+# -- get the absolute path to the parent, if that exists parabsp --
+# Input
+#   $1 = jq-style absolute path
+# Output
+#   jq-style absolute path to the parent, or nothing
+#   return code 0 for success, 1 for failure, 2 for no parent
+# Behavior
+#   Given the shortcut, if it has a parent shortcut, returns that parent shortcut's absolute path.
+# Invariants
+#   assumes that the absolute path is a valid shortcut
+# Dependencies
+#   none
+gotoh_get_parent_path() {
+	# get child shortcut
+	local absolute_path="$1"
+
+	# first check that shortcut has a parent.
+	## rule of thumb is: if the shortcut is of length 2 or shorter, it's already the root and doesn't have a parent.
+	local path_length
+	path_length="$( jq -n "${absolute_path}|length" )" || return 1
+	if [ "$path_length" -le 2 ]
+	then
+		# >&2 echo "The provided path {$absolute_path} has no parent." # diagnostic
+		return 2
+	fi
+
+	# now that we know shortcut has a parent, we can return its subarray, which is just the 
+	# absolute path with two less elements from the end.
+	local parent_absp
+	parent_absp="$( jq -n "${absolute_path}|.[:length-2]" )" || return 1
+
+	# output the absolute path
+	echo "$parent_absp"
+	return $gotocode_success
+}
+
+# -- construct the full file path starting from a shortcut to a relative-path cffp --
+# Input
+#   $1 = jq-style absolute path to a shortcut that has a relative path as its destination
+# Output
+#   an absolute filesystem path built from shortcut and its parents, all the way up to some absolute path.
+#   return code 0 for success, 1 for failure
+# Behavior
+#   Given the shortcut, returns its full filesystem absolute path
+# Invariants
+#   assumes that the absolute path is a valid shortcut
+#   assumes ability to access gotov_json_filepath
+#   assumes that the shortcut is of type 'd' or 'f', so that it has a filesystem path to begin with.
+# Dependencies
+#   gotoh_get_parent_path
+gotoh_build_absolute_filepath() {
+	# set up absolute json path variable
+	local starting_jsonpath="$1"
+
+	# initialize helpful variables for the while loop
+	local current_jsonpath parent_jsonpath
+	local parent_filepath final_filepath tmp_suffix
+	local parent_type
+
+	# absolute filepath regex
+	local re_absf='^\/'
+
+	# set up booleans for while loop
+	# local has_parent=0 # not entirely sure this is necessary
+	local hit_absolute_filepath=false
+
+	# initialize current variable trackers
+	current_jsonpath="$starting_jsonpath"
+	final_filepath="$( jq -r "getpath(${starting_jsonpath})|.destination" "$gotov_json_filepath" )"
+
+	# while-loop construct filepath
+	while [ "$hit_absolute_filepath" = "false" ]
+	do
+		# get the parent json path
+		## if the parent doesn't exist, then it's wrong: we had relative paths all the way up to (and including) the root.
+		parent_jsonpath="$(gotoh_get_parent_path "$current_jsonpath")"
+		if [ $? -ne 0 ]
+		then
+			gotoh_verbose "We have a situation where the filepaths are relative all the way up to the root." "This shouldn't happen." "Quit."
+			return 1
+		fi
+		# >&2 echo "parent json path: '$parent_jsonpath'" # diagnostic
+		
+		# get the type & check it
+		parent_type="$( jq -r "getpath(${parent_jsonpath})|.type" "$gotov_json_filepath" )"
+		# >&2 echo "parent type: '$parent_type'" # diagnostic
+
+		## if the parent type is not a 'd' directory, then something's wrong, since this function should
+		## only be called when we know that the shortcut is a relative dir, and its parents should
+		## be directories until we hit an absolute path.
+		if [ "$parent_type" != "d" ]
+		then
+			gotoh_verbose "The parent of the shortcut at" "  ${current_jsonpath}" "isn't a directory." "This shouldn't happen." "Quit."
+			return 1
+		fi
+
+		# get the filepath and prepend it to the final filepath
+		parent_filepath="$( jq -r "getpath(${parent_jsonpath})|.destination" "$gotov_json_filepath" )"
+		tmp_suffix="$final_filepath"
+		final_filepath="$parent_filepath"
+		final_filepath+="/${tmp_suffix}"
+
+		# check that the destination is an absolute filesystem path. if so, set boolean so that while loop may end.
+		if [[ "$parent_filepath" =~ $re_absf ]]
+		then
+			hit_absolute_filepath="true"
+		fi
+
+		# update the current_jsonpath
+		current_jsonpath="$parent_jsonpath"
+	done
+
+	# return the final filepath
+	echo "$final_filepath"
+}
+
 # -- open the specified destination opdest --
 # helper doesn't check for proper input. maintain good calling etiquette.
 # Input
@@ -1286,14 +1405,21 @@ gotoh_go() {
 # -- open the destination at the end of the absolute path opabsp --
 # Input
 #   $1 = jq-style absolute path to access the shortcut to open
-# Output: none
+# Output
+#   no echo
+#   normal return 0
+#   if type is 'topic', then return 2
+#   if failed due to incorrect relative path backtracing, then return 3
 # Behavior
 #   opens the destination specified at the absolute path in goto.json
+#     if the destination is a relative filesystem path, then first builds the absolute filepath by 
+#     tracing to its parent(s), adding path prefixes along the way.
 # Invariants
 #   assumes that the absolute path is a valid shortcut
 #   assumes ability to access gotov_json_filepath
 # Dependencies
 #   gotoh_go
+#   gotoh_build_absolute_filepath
 gotoh_open_path() {
 	# get the input path
 	local absolute_path="$1"
@@ -1313,7 +1439,17 @@ gotoh_open_path() {
 			"The topic '${description}'" \
 			"has no associated destination."
 		gotoh_output "Cannot open a topic."
-		return $gotocode_cannot_goto_topic
+		return 2
+	fi
+
+	# if type is d or f and destination is a relative path, then build the absolute path using its parents.
+	if [ "$type" = "d" ] || [ "$type" = "f" ]
+	then
+		if ! [[ "$destination" =~ ^\/ ]]
+		then
+			gotoh_verbose "The destination '$destination' is relative. Building absolute path from parents of shortcut '$description'..."
+			destination="$( gotoh_build_absolute_filepath "${absolute_path}" )" || return 3
+		fi
 	fi
 
 	# display the last match's description
@@ -1322,7 +1458,6 @@ gotoh_open_path() {
 	# based on the type and destination, go there
 	gotoh_go "$type" "$destination"
 }
-
 
 ######################################################
 ## helpers for CRUD user interface functions hcrui ##
@@ -1725,7 +1860,7 @@ gotoh_print_family() {
 #   auto-directory mode
 #     -dunder parent_keywords
 #       in this option, auto-directory mode is turned on: automatically sets 
-#       t = d and n = current working directory path
+#       t = d and n = current working directory path (checks parent path & uses relative path if possible)
 #   command-line mode
 #     -under parent_keywords
 #   browse mode
@@ -1901,6 +2036,17 @@ gotoui_create() {
 			then
 				object_type='d'
 				destination="$( pwd | tr -d '\n' )"
+
+				# now, check if the would-be parent (which is the match itself) is a dir.
+				# if so, shorten the destination to a relative path using substitution.
+				local matched_parent_type="$( jq -r "getpath(${matched_absolute_path})|.type" "$gotov_json_filepath" )"
+				# only if type is dir do we do relative path substitution.
+				if [ "$matched_parent_type" = "d" ]
+				then
+					local matched_parent_destination="$( jq -r "getpath(${matched_absolute_path})|.type" "$gotov_json_filepath" )"
+					destination="${destination/}"
+				fi
+
 
 			# prompt for type & destination
 			else
@@ -2460,9 +2606,9 @@ gotoui_update() {
 					if ! [[ "$selected_option_number" =~ $number_regex ]]
 					then
 						gotoh_output "Invalid selection: '${selected_option_number}' is not a number."
-					elif [ "$selected_option_number" -gt "$setting_options_count" ]
+					elif [ "$selected_option_number" -gt "$setting_options_count" ] || [ "$selected_option_number" -lt 1 ]
 					then
-						gotoh_output "Invalid selection: '${selected_option_number}' is out of range (1-$setting_options_count)."
+						gotoh_output "Invalid selection: '${selected_option_number}' is out of range [1-$setting_options_count]."
 					else
 						valid_selection=true
 					fi
