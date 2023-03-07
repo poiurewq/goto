@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.6.3-a.1+20230307003017"
+gotov_semver="v0.6.4-a.1+20230307003601"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1565,12 +1565,14 @@ gotoh_create() {
 	# build a json object for the new node. remember to include the list.
 	#   if destination is "null", we make it unquoted, so it's a json null.
 	local new_node_object
-	if [ "$destination" = "null" ]
-	then
-		new_node_object="{keyword:\"${keyword}\",description:\"${description}\",type:\"${object_type}\",destination:${destination},list:[]}"
-	else
-		new_node_object="{keyword:\"${keyword}\",description:\"${description}\",type:\"${object_type}\",destination:\"${destination}\",list:[]}"
-	fi
+	case "$destination" in
+		null|NULL|Null)
+			new_node_object="{keyword:\"${keyword}\",description:\"${description}\",type:\"${object_type}\",destination:${destination},list:[]}"
+			;;
+		*)
+			new_node_object="{keyword:\"${keyword}\",description:\"${description}\",type:\"${object_type}\",destination:\"${destination}\",list:[]}"
+			;;
+	esac
 	
 	# augment the absolute path with "list" to access the parent's list
 	# this is an important technique
