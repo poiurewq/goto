@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.7.0-a.0+20230307035341"
+gotov_semver="v0.7.1-a.0+20230307041654"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1832,8 +1832,8 @@ gotoh_move() {
 	local shortcut_absp="$1"
 	local parent_absp="$2"
 
-	>&2 echo "Shortcut absp: ${shortcut_absp}" # diagnostic
-	>&2 echo "Parent absp: ${parent_absp}" # diagnostic
+	# >&2 echo "Shortcut absp: ${shortcut_absp}" # diagnostic
+	# >&2 echo "Parent absp: ${parent_absp}" # diagnostic
 
 	# check that the shortcut is not the root
 	local shortcut_length="$( jq -nr "${shortcut_absp} | length" )"
@@ -1863,7 +1863,7 @@ gotoh_move() {
 	## If the parent path is a subset of shortcut path, then the parent shortcut is invalid.
 	if [ "$shortcut_is_a_prefix_sub_of_parent" = "true" ]
 	then
-		gotoh_output "The parent shortcut is invalid, since it is equal to or a child of the shortcut to be moved."
+		gotoh_output "The parent shortcut is invalid, since it is equal to or is a child of the shortcut to be moved."
 		return 3
 	fi
 
@@ -3201,6 +3201,11 @@ gotoui_browse() {
 	local user_choice_is_valid
 	local tmptrash
 
+	# initialize a flag for toggling move-browsing mode
+	## move-browsing mode is only turned on when the user has selected -m and hasn't selected a particular parent yet. it enables up & down traversal as normal, as well as a single option, '-h', to select destination to move to.
+	local move_browsing_mode=0
+	local move_shortcut_absp
+
 	# while loop continually until quit
 	while :
 	do
@@ -3215,18 +3220,38 @@ gotoui_browse() {
 			# output options available to root shortcut
 			if [ "$current_absolute_path" = "$starting_absolute_path" ]
 			then
-				gotoh_output "Type one of the following options, then [Enter]." \
-					"  [-c] create shortcut" \
-					"  [a child keyword]" \
-					"  [-q] quit"
+				# output options based on move browsing mode
+				if [ "$move_browsing_mode" -eq 0 ]
+				then
+					gotoh_output "Type one of the following options, then [Enter]." \
+						"  [-c] create shortcut" \
+						"  [a child keyword]" \
+						"  [-q] quit"
+				else
+					gotoh_output "Type one of the following options, then [Enter]." \
+						"  [a child keyword]" \
+						"  [-h] move here" \
+						"  [-q] quit move"
+				fi
 			else
-				gotoh_output "Type one of the following options, then [Enter]." \
-					"  [-c] create shortcut" \
-					"  [-d] delete shortcut" \
-					"  [-u] update shortcut" \
-					"  [-p] back to parent" \
-					"  [a child keyword]" \
-					"  [-q] quit"
+				# output options based on move browsing mode
+				if [ "$move_browsing_mode" -eq 0 ]
+				then
+					gotoh_output "Type one of the following options, then [Enter]." \
+						"  [-c] create shortcut" \
+						"  [-d] delete shortcut" \
+						"  [-u] update shortcut" \
+						"  [-m] move shortcut" \
+						"  [-p] back to parent" \
+						"  [a child keyword]" \
+						"  [-q] quit"
+				else
+					gotoh_output "Type one of the following options, then [Enter]." \
+						"  [-h] move here" \
+						"  [-p] back to parent" \
+						"  [a child keyword]" \
+						"  [-q] quit move"
+				fi
 			fi
 		#   display setting-compatible options
 		else
@@ -3256,7 +3281,7 @@ gotoui_browse() {
 				# create
 				-c) 
 					# determine user choice validity
-					if [ "$subset_option" != "-sc" ]
+					if [ "$subset_option" != "-sc" ] || [ "$move_browsing_mode" -eq 1 ]
 					then
 						gotoh_output "Invalid option."
 						continue
@@ -3270,7 +3295,7 @@ gotoui_browse() {
 				# delete
 				-d) 
 					# determine user choice validity
-					if [ "$subset_option" != "-sc" ] || [ "$current_absolute_path" = "$starting_absolute_path" ]
+					if [ "$subset_option" != "-sc" ] || [ "$current_absolute_path" = "$starting_absolute_path" ] || [ "$move_browsing_mode" -eq 1 ]
 					then
 						gotoh_output "Invalid option."
 						continue
@@ -3299,7 +3324,7 @@ gotoui_browse() {
 				# update
 				-u) 
 					# determine user choice validity
-					if [ "$current_absolute_path" = "$starting_absolute_path" ]
+					if [ "$current_absolute_path" = "$starting_absolute_path" ] || [ "$move_browsing_mode" -eq 1 ]
 					then
 						gotoh_output "Invalid option."
 						continue
@@ -3318,6 +3343,41 @@ gotoui_browse() {
 					gotoui_update "$subset_option_for_update" "${current_absolute_path}"
 					;;
 
+				# move
+				-m) 
+					# determine user choice validity
+					if [ "$subset_option" != "-sc" ] || [ "$current_absolute_path" = "$starting_absolute_path" ] || [ "$move_browsing_mode" -eq 1 ]
+					then
+						gotoh_output "Invalid option."
+						continue
+					else
+						user_choice_is_valid=true
+					fi
+
+					# allow user to perform light-weight browsing to decide where to move to.
+					move_browsing_mode=1
+					move_shortcut_absp="${current_absolute_path}"
+					;;
+
+				# move here
+				-h)
+					# determine user choice validity
+					if [ "$move_browsing_mode" -ne 1 ]
+					then
+						gotoh_output "Invalid option."
+						continue
+					else
+						user_choice_is_valid=true
+					fi
+
+					# call move helper from browse
+					gotoh_move "${move_shortcut_absp}" "${current_absolute_path}"
+
+					# reset variables
+					move_browsing_mode=0
+					move_shortcut_absp=""
+					;;
+
 				# parent
 				-p) 
 					# determine user choice validity: it's always valid
@@ -3330,7 +3390,7 @@ gotoui_browse() {
 						gotoh_output "This is the root, cannot go up."
 						read -p "[Enter] to continue." tmptrash
 					# else (if current length is greater than 2), update absolute path
-					#   in the exact same way as after successful deletion
+					## in the exact same way as after successful deletion
 					else
 						current_absolute_path="$( jq '.[:(length-2)]' <<< "$current_absolute_path" )"
 					fi
@@ -3340,8 +3400,17 @@ gotoui_browse() {
 				-q) 
 					# determine user choice validity: it's always valid
 					user_choice_is_valid=true
-					# quit
-					return $gotocode_quit_from_browse
+					# quit, behavior depends on move browsing mode
+					## if move browsing not on, quit browse
+					if [ "$move_browsing_mode" -ne 1 ]
+					then
+						return $gotocode_quit_from_browse
+
+					## if move browsing on, quit move-browsing by toggling flag back to 0 and resetting the move shortcut absp
+					else
+						move_browsing_mode=0
+						move_shortcut_absp=""
+					fi
 					;;
 
 				# child keyword
