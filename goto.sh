@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.6.2-a.1+20230303041215"
+gotov_semver="v0.6.3-a.1+20230307003017"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1257,7 +1257,6 @@ gotoh_get_parent_path() {
 #   assumes that the absolute path is a valid shortcut
 #   assumes ability to access gotov_json_filepath
 #   assumes that the shortcut is of type 'd' or 'f', so that it has a filesystem path to begin with.
-#   assumes that the shortcut is currently going to a relative path, so whenever it encounters a parent with a non-'d' type, it quits with failure mode.
 # Dependencies
 #   gotoh_get_parent_path
 gotoh_build_absolute_filepath() {
@@ -1279,6 +1278,13 @@ gotoh_build_absolute_filepath() {
 	# initialize current variable trackers
 	current_jsonpath="$starting_jsonpath"
 	final_filepath="$( jq -r "getpath(${starting_jsonpath})|.destination" "$gotov_json_filepath" )"
+
+	# first check if the filepath is already absolute. if so, directly return it. else, continue into the while loop.
+	if [[ "$final_filepath" =~ $re_absf ]]
+	then
+		echo "${final_filepath}"
+		return 0
+	fi
 
 	# while-loop construct filepath
 	while [ "$hit_absolute_filepath" = "false" ]
@@ -1454,11 +1460,8 @@ gotoh_open_path() {
 	# if type is d or f and destination is a relative path, then build the absolute path using its parents.
 	if [ "$type" = "d" ] || [ "$type" = "f" ]
 	then
-		if ! [[ "$destination" =~ ^\/ ]]
-		then
-			gotoh_verbose "The destination '$destination' is relative. Building absolute path from parents of shortcut '$description'..."
-			destination="$( gotoh_build_absolute_filepath "${absolute_path}" )" || return 3
-		fi
+		gotoh_verbose "The destination '$destination' is relative. Building absolute path from parents of shortcut '$description'..."
+		destination="$( gotoh_build_absolute_filepath "${absolute_path}" )" || return 3
 	fi
 
 	# display the last match's description
@@ -3361,10 +3364,10 @@ gotoui_goto() {
 	else
 		local destination_filetype="$( jq -r "getpath(${matched_absolute_path})|.type" "${gotov_json_filepath}" )"
 		
-		# if the shortcut is a dir, then set the content at the absolute path as the dir and fall through to the recursive filesystem search.
+		# if the shortcut is a dir, then set the content at the absolute json path as the dir and fall through to the recursive filesystem search.
 		if [ "$destination_filetype" = "d" ]
 		then
-			dir_in_which_to_look="$( jq -r "getpath(${matched_absolute_path})|.destination" "${gotov_json_filepath}" )"
+			dir_in_which_to_look="$( gotoh_build_absolute_filepath "${matched_absolute_path}" )"
 		
 		# else (if the type is not a directory), we quit.
 		else
