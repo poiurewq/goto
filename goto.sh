@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.6.4-a.1+20230307003601"
+gotov_semver="v0.7.0-a.0+20230307035341"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1479,6 +1479,7 @@ gotoh_open_path() {
 # They are non-interactive.
 
 # == overwrite json ovwjsn ==
+# This is a general helper for overwriting the goto.json file. All CUDM operations should go through here.
 # Input
 #   $1 = a string representing the jq command that updates the goto.json. 
 #   $2 = an optional number to set as the threshold for change being too large
@@ -1521,6 +1522,7 @@ gotoh_overwrite_json() {
 		gotoh_verbose \
 			"The jq edit, with a line count difference of ${difference}, was too dramatic." \
 			"Aborting goto.json update."
+		gotoh_output "The goto keywords file was not updated."
 		return 2
 	fi
 
@@ -1802,7 +1804,122 @@ gotoh_delete() {
 
 # == helper to move node hlpm ==
 # This is a non-interactive helper function
-gotoh_move() { :; }
+# Input
+#   $1 = absolute path to shortcut being moved
+#   $2 = absolute path to parent to which the shortcut is being moved
+# Output
+#   if shortcut is the root, say that it can't be moved, return 1
+#   if parent is direct parent of shortcut, notify so, return 2
+#   if parent is shortcut or a child of shortcut, notify that shortcut cannot be placed under itself, return 3
+#   neat print of the shortcut & parent information if successful, return 0
+# Behavior
+#   checks that parent and shortcut path are appropriate:
+#     check that shortcut isn't already a direct child of parent, in which case moving is a waste of time.
+#     also check that shortcut isn't equal to or a parent of parent, else we would lose data at the deletion stage.
+#   if so, stores each field of the shortcut, to be used for creation later
+#   also obtains shortcut's starting path and ending path for later display
+#   calls gotoh_overwrite_json to create identical shortcut under parent
+#   calls gotoh_delete to delete original shortcut by absolute path
+#   helpfully outputs information about shortcut's original parent and shortcut's new parent
+# Invariants
+#   assumes that both absolute paths exist
+#   assumes has access to gotov_json_filepath
+# Dependences
+#   gotoh_overwrite_json
+#   gotoh_delete
+gotoh_move() { 
+	# set up the arg variables
+	local shortcut_absp="$1"
+	local parent_absp="$2"
+
+	>&2 echo "Shortcut absp: ${shortcut_absp}" # diagnostic
+	>&2 echo "Parent absp: ${parent_absp}" # diagnostic
+
+	# check that the shortcut is not the root
+	local shortcut_length="$( jq -nr "${shortcut_absp} | length" )"
+	if [ "$shortcut_length" -le 1 ]
+	then
+		gotoh_output "The root cannot be moved."
+		return 1
+	fi
+
+	# check that the shortcut isn't a direct child of parent
+	local direct_child_checker="${shortcut_absp} as \$sc | ${parent_absp} as \$par | \$sc | .[:length-2] == \$par"
+	local shortcut_is_a_child_of_parent="$( jq -nr "${direct_child_checker}" )"
+	## if checker is true, then shortcut is a direct child of parent
+	if [ "$shortcut_is_a_child_of_parent" = "true" ]
+	then
+		gotoh_output "Since the specified parent is the current parent of the shortcut, the move operation is unnecessary."
+		return 2
+	fi
+
+	# check that the parent shortcut is not equal to nor a subset of shortcut_absp
+	## Simplified idiom: jq -n '<parent_absp> | [ foreach .[] as $elem ([]; . +  [$elem]; . ) | . == <shortcut_absp> ] | any'
+	### This above method first generates all prefixes of the parent absp, then checks the shortcut absp against each prefix. If at any point the shortcut equals a prefix of the parent absp, then this returns 'true' and the parent is invalid.
+	### In other words, if shortcut is a prefix-subarray of parent, then that means shortcut is a parent or equivalent of the supposed parent
+	local overlap_checker="${shortcut_absp} as \$sc | ${parent_absp} as \$par | \$par | [ foreach .[] as \$elem ([]; . +  [\$elem]; . ) | . == \$sc ] | any"
+	local shortcut_is_a_prefix_sub_of_parent="$( jq -nr "${overlap_checker}" )"
+
+	## If the parent path is a subset of shortcut path, then the parent shortcut is invalid.
+	if [ "$shortcut_is_a_prefix_sub_of_parent" = "true" ]
+	then
+		gotoh_output "The parent shortcut is invalid, since it is equal to or a child of the shortcut to be moved."
+		return 3
+	fi
+
+	# now that the paths have been checked, the shortcut can be safely added under the desired parent, then deleted from its original location
+
+	# before doing so, let's obtain basic information about the shortcut.
+	## obtain string representation of the starting path to shortcut
+	local sc_starting_path_string="$( gotoh_print_path "${shortcut_absp}" )"
+	## obtain the shortcut keywords
+	local sc_keywords="$( jq -r "getpath(${shortcut_absp})|.keyword" "$gotov_json_filepath" )"
+
+	## obtain the shortcut json representation
+	local sc_json="$( jq -c "getpath(${shortcut_absp})" "$gotov_json_filepath" )"
+	## count expected number of lines to be added
+	local expected_added_lines="$( jq "getpath(${shortcut_absp})" "$gotov_json_filepath" | wc -l | tr -d ' ' )"
+	(( expected_added_lines ++ ))
+
+	# let's add the shortcut (with all its sublist) under the parent
+	## construct insertion filter
+	### create 
+	local parent_list_absp="$( jq -c '.+=["list"]' <<< "$parent_absp" )"
+	local insert_shortcut_under_parent="getpath(${parent_list_absp})+=[${sc_json}]"
+	local overwrite_code
+	gotoh_overwrite_json "${insert_shortcut_under_parent}" "${expected_added_lines}"
+	overwrite_code=$?
+	if [ $overwrite_code -eq 2 ]
+	then
+		gotoh_output "Failed to move shortcut due to insertion change being too large."
+		return $gotocode_overwrite_failed
+	elif [ $overwrite_code -ne 0 ]
+	then
+		gotoh_output "Failed to move shortcut at the insertion stage."
+		return $gotocode_overwrite_failed
+	fi
+
+	# let's obtain the new shortcut's path
+	local sc_new_absp="$( jq -c '.+=["list",0]' <<< "$parent_absp" )"
+	local sc_new_path_string="$( gotoh_print_path "${sc_new_absp}" )"
+
+	# let's now delete the shortcut from its old place. this time we can use an existing helper.
+	gotoh_delete "${shortcut_absp}"
+	if [ $? -eq $gotocode_overwrite_failed ]
+	then
+		gotoh_output "Failed to remove the old shortcut at the deletion stage."
+		return $gotocode_ui_operation_failed
+	fi
+
+	# now let's let the user know about what we've done
+	gotoh_output \
+		"Successfully moved shortcut '${sc_keywords}' from" \
+		"  ${sc_starting_path_string}" \
+		"    to" \
+		"  ${sc_new_path_string}"
+	
+	return 0
+}
 
 # == helper to print family (node and children) hlpf ==
 # This is a non-interactive helper function
@@ -2929,7 +3046,110 @@ gotoui_delete_recursive() {
 
 # == user interface function for moving a node moui ==
 # move is a non-interactive function
-gotoui_move() { :; }
+# Input
+#   $1~n-1		= shortcut
+#   $n			= -under
+#   $n+1~end	= parent
+# Output
+#   echo success with a user-friendly message
+#   return 0 if success,
+#   1 for invalid input, 
+#   2 for shortcut not found,
+#   3 for parent not found,
+#   4 for operation unsuccessful
+# Behavior
+#   parses user input to obtain shortcut keywords and parent keywords lists.
+#   makes sure all shortcut, -under, and parent keys are provided.
+#   searches for shortcut, obtains its key path (should need a helpful for that, and call that helper from multipath cases as well) or outputs shortcut not found.
+#   searches for parent, obtains its key path or outputs parent not found.
+#   runs gotoh_move on the absolute paths, letting it output the appropriate information about the shortcut and its parents.
+# Invariants
+#   requires proper invocation according to the format <shortcut keys> -under <parent keys>
+# Dependencies
+#   gotoh_move
+gotoui_move() { 
+	# check input is non-empty
+	if [ $# -eq 0 ]
+	then
+		gotoh_output "Empty input. Check 'goto --help' for proper invocation."
+		return $gotocode_invalid_arg
+	fi
+
+	# parse user input to obtain shortcut and parent keywords
+
+	local shortcut_keys=()
+	local parent_keys=()
+
+	local before_under=1
+
+	local each_arg
+	for each_arg in $@
+	do
+		# detect -under and update before_under to 0
+		if [ "$each_arg" = "-under" ]
+		then
+			before_under=0
+
+		# for a non '-under' argument, store it in one of the two keys arrays
+		else
+			# if before -under, add to shortcut keys
+			if [ "$before_under" -eq 1 ]
+			then
+				shortcut_keys+=("$each_arg")
+			
+			# if after -under, add to parent keys
+			else
+				parent_keys+=("$each_arg")
+			fi
+		fi
+	done
+
+	# check input validity...
+	## if shortcut keys is empty, that means there were no keywords before -under
+	if [ "${#shortcut_keys[@]}" -eq 0 ]
+	then
+		gotoh_output "Missing shortcut specifier. Check 'goto --help' for proper invocation."
+		return $gotocode_invalid_arg
+
+	## if before_under is still equal to 1, that means -under doesn't exist
+	elif [ "$before_under" -eq 1 ]
+	then
+		gotoh_output "Missing '-under' option. Check 'goto --help' for proper invocation."
+		return $gotocode_invalid_arg
+
+	## if parent keys is empty, that means input is missing parent keys
+	elif [ "${#parent_keys[@]}" -eq 0 ]
+	then
+		gotoh_output "Missing parent specifier. Check 'goto --help' for proper invocation."
+		return $gotocode_invalid_arg
+	fi
+
+	# At this point, we'll have our two keyword lists. We'll feed them into rcjs to obtain our desired absolute paths.
+
+	## Obtain shortcut absolute path
+	local shortcut_absolute_path
+	shortcut_absolute_path="$( gotoh_recursive_json_search "-sc" "${shortcut_keys[@]}" )"
+	### if not single match, then cannot read.
+	if [ -z "$shortcut_absolute_path" ] || [ "$shortcut_absolute_path" = "multiple" ]
+	then
+		gotoh_output "No unique match found for shortcut specified by '${shortcut_keys[@]}'."
+		return $gotocode_no_unique_match
+	fi
+
+	## Obtain parent absolute path
+	local parent_absolute_path
+	parent_absolute_path="$( gotoh_recursive_json_search "-sc" "${parent_keys[@]}" )"
+	### if not single match, then cannot read.
+	if [ -z "$parent_absolute_path" ] || [ "$parent_absolute_path" = "multiple" ]
+	then
+		gotoh_output "No unique match found for parent specified by '${parent_keys[@]}'."
+		return $gotocode_no_unique_match
+	fi
+
+	# Now that we have both absolute paths, we can call our move helper.
+	## The move helper will check whether the shortcut can be moved under the parent, so we don't do that in the caller function.
+	gotoh_move "$shortcut_absolute_path" "$parent_absolute_path" || return $?
+}
 
 # == user interface function for browsing all nodes brui ==
 # browse is an interactive function
@@ -3178,7 +3398,7 @@ case "$1" in
 	#   for easier identification of problem functions, thereby helping with debugging
 	case "$1" in
 		-c|--create) gotoui_create "${@:2}" ;;
-		-cd|--create-directory) 
+		-cd|--create-directory)
 			# if empty, invalid.
 			if [ -z "$2" ]
 			then
@@ -3208,6 +3428,7 @@ case "$1" in
 		-u|--update) gotoui_update "${@:2}" ;;
 		-d|--delete) gotoui_delete "${@:2}" ;;
 		-dr|--delete-recursive) gotoui_delete_recursive "${@:2}" ;;
+		-m|--move) gotoui_move "${@:2}" ;;
 		-b|--browse) 
 			# if -b or --browse only, then assume it's shortcuts.
 			if [ -z "$2" ]
