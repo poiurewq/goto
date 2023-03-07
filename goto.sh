@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.7.2-a.0+20230307114132"
+gotov_semver="v0.7.3-a.0+20230307133336"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -1899,9 +1899,8 @@ gotoh_move() {
 		return $gotocode_overwrite_failed
 	fi
 
-	# let's obtain the new shortcut's path
-	local sc_new_absp="$( jq -c '.+=["list",0]' <<< "$parent_absp" )"
-	local sc_new_path_string="$( gotoh_print_path "${sc_new_absp}" )"
+	# let's obtain the new shortcut's parent's path
+	local sc_new_parent_path_string="$( gotoh_print_path "${parent_absp}" )"
 
 	# let's now delete the shortcut from its old place. this time we can use an existing helper.
 	gotoh_delete "${shortcut_absp}"
@@ -1915,8 +1914,8 @@ gotoh_move() {
 	gotoh_output \
 		"Successfully moved shortcut '${sc_keywords}' from" \
 		"  ${sc_starting_path_string}" \
-		"    to" \
-		"  ${sc_new_path_string}"
+		"    to being under" \
+		"  ${sc_new_parent_path_string}"
 	
 	return 0
 }
@@ -3302,13 +3301,13 @@ gotoui_browse() {
 						"  [-d] delete shortcut" \
 						"  [-u] update shortcut" \
 						"  [-m] move shortcut" \
-						"  [-p] back to parent" \
+						"  [-b] back to parent" \
 						"  [a child keyword]" \
 						"  [-q] quit"
 				else
 					gotoh_output "Type one of the following options, then [Enter]." \
 						"  [-h] move here" \
-						"  [-p] back to parent" \
+						"  [-b] back to parent" \
 						"  [a child keyword]" \
 						"  [-q] quit move"
 				fi
@@ -3324,7 +3323,7 @@ gotoui_browse() {
 			else
 				gotoh_output "Type one of the following options, then [Enter]." \
 					"  [-u] update setting" \
-					"  [-p] back to parent" \
+					"  [-b] back to parent" \
 					"  [a child keyword]" \
 					"  [-q] quit"
 			fi
@@ -3432,14 +3431,33 @@ gotoui_browse() {
 
 					# call move helper from browse
 					gotoh_move "${move_shortcut_absp}" "${current_absolute_path}"
+					# only if move was successful do we switch browsing mode back and perform appropriate wrap-up operations
+					if [ $? -eq 0 ]
+					then
 
-					# reset variables
-					move_browsing_mode=0
-					move_shortcut_absp=""
+						# predict where the current absolute path should be in order to remain at the move destination. this only matters if the shortcut that is deleted is a sibling of an ancestor of the destination (parent) node.
+						## This filter generates either 'noop' or the first element index at which the current_absolute_path should be decremented by one due to deletion of original shortcut
+						### Algorithmically, the first element is the first index at which the two paths differ: that is the first depth at which the branches diverge between shortcut and parent. If the first element index is out of range (jq index() returns null), then it is a noop, since parent is a direct ancestor of shortcut, so deleting shortcut doesn't affect path to parent.
+						local current_absp_op="$( jq -ncr "${move_shortcut_absp} as \$sc | ${current_absolute_path} as \$par | (\$par | to_entries ) as \$parkeys | \$parkeys | [ foreach .[] as \$parelem ({}; \$parelem; (.key | tonumber) as \$k | .value as \$v | \$sc | .[\$k] == \$v ) ] | index(false) // \"noop\"" )"
+						case "$current_absp_op" in
+							# if noop, don't do anything to the current absolute path.
+							noop) : ;;
+
+							# else, it's an index.
+							*)
+								# decrement at the appropriate index
+								current_absolute_path="$( jq -nr "${current_absolute_path} | .[${current_absp_op}] |= .-1" )"
+								;;
+						esac
+
+						# reset variables
+						move_browsing_mode=0
+						move_shortcut_absp=""
+					fi
 					;;
 
-				# parent
-				-p) 
+				# back to parent
+				-b) 
 					# determine user choice validity: it's always valid
 					user_choice_is_valid=true
 					# update the absolute path if possible
