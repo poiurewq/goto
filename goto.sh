@@ -136,7 +136,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.7.1-a.0+20230307041654"
+gotov_semver="v0.7.2-a.0+20230307114132"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -345,7 +345,7 @@ CRUD usage: goto [options]
     -u | --update  -n 'destination' -of shortcut
     -d | --delete  shortcut
     -dr| --delete-recursive  shortcut
-    -m | --move    shortcut -under parent (upcoming feature)
+    -m | --move    shortcut -under parent
   
     examples:
       # create a shortcut to a journal folder with multiple keywords: j, J, and journal
@@ -2170,6 +2170,7 @@ gotoui_create() {
 
 				# now, check if the would-be parent (which is the match itself) is a dir.
 				# if so, shorten the destination to a relative path using substitution.
+				## this exact algorithm is replicated in gotoui_update
 				local matched_parent_type="$( jq -r "getpath(${matched_absolute_path})|.type" "$gotov_json_filepath" )"
 				# only if type is dir do we do relative path substitution.
 				if [ "$matched_parent_type" = "d" ]
@@ -2459,10 +2460,11 @@ gotoui_read() {
 # Behavior
 #   If input starts with subset option, it's interactive. 
 #     Search keywords and, if unique match, then interactively update content.
-#       For shortcuts, user can type destination.
-#       For settings, user must select from a set of predefined options.
+#       For shortcuts, user can type destination. Update helper is not invoked here.
+#       For settings, user must select from a set of predefined options. Update helper is invoked here.
 #   If input starts with field specifier, it's non-interactive.
-#     In this mode, user is assumed to be updating a shortcut specified by the keywords.
+#     In this mode, user is assumed to be updating a shortcut specified by the keywords. Update helper is not invoked here.
+#   After setting the appropriate fields, update helper is invoked here for both interactive & non-interactive cases.
 # Invariants
 #   Non-interactive input
 # Dependencies
@@ -2490,13 +2492,19 @@ gotoui_update() {
 		pure_keywords_mode=true
 	fi
 
+	# initialize a boolean to keep track of whether update helper can be called.
+	## 0 = not ready; 1 = ready
+	local ready_to_update=0
+
+	# initialize the variables to be used to invoke update helper
+	local matched_absolute_path field_specifier field_content
+
 	# determine whether we're in interactive or non-interactive mode.
 	# interactive mode
 	if [ "$1" = "-sc" ] || [ "$1" = "-st" ] || [ "$1" = "-bsc" ] || [ "$1" = "-bst" ] || [ "$pure_keywords_mode" = "true" ]
 	then
 		# determine whether we're in command-line-interactive or browse-interactive mode
 		local absolute_path_is_ready
-		local matched_absolute_path
 		local subset_option
 		# if browse-interactive mode, directly read in absolute path and send to current match
 		if [ "$1" = "-bsc" ] || [ "$1" = "-bst" ]
@@ -2548,7 +2556,7 @@ gotoui_update() {
 			# get ready for absolute path
 			absolute_path_is_ready=true
 		fi
-		
+
 		# if unique match or absolute path is ready, then prompt user to update, depending on subset option.
 		if [ "$absolute_path_is_ready" = true ]
 		then
@@ -2585,7 +2593,7 @@ gotoui_update() {
 					esac
 				done
 				# based on field type, prompt for content and check for validity
-				local field_content field_specifier_word
+				local field_specifier_word
 				case "$field_type" in
 					# prompt for keyword in the same way as ui create
 					k) 
@@ -2687,6 +2695,7 @@ gotoui_update() {
 						# assign type code to field content
 						field_content="${object_type}"
 						;;
+
 					n) 
 						field_specifier_word="destination"
 						# first check that type isn't 't'.
@@ -2698,6 +2707,7 @@ gotoui_update() {
 							gotoh_output "This shortcut is a topic, so its destination cannot be updated."
 							return $gotocode_cannot_set_topic
 						fi
+
 						# else, prompt for destination
 						gotoh_output "Type a new destination, then [Enter]"
 						read -p "Destination: " field_content
@@ -2715,11 +2725,10 @@ gotoui_update() {
 				then
 					gotoh_output "Update cancelled."
 					return $gotocode_interactive_operation_cancelled
+				else
+					ready_to_update=1
+					field_specifier="-${field_type}"
 				fi
-				#   call the update helper & update accordingly
-				gotoh_update "-sc" "${matched_absolute_path}" "-${field_type}" "${field_content}" \
-					&& gotoh_output "Successfully updated shortcut '${matched_keyword}'"
-				return $gotocode_success
 
 			# if settings, prompt according to the possible options for the particular setting
 			elif [ "$subset_option" = "-st" ]
@@ -2825,8 +2834,8 @@ gotoui_update() {
 					return $gotocode_invalid_arg
 				fi
 				# set up input variables
-				local field_specifier="$1"
-				local field_content="$2"
+				field_specifier="$1"
+				field_content="$2"
 				local keywords="${@:4}"
 				# set up field specifier word
 				local field_specifier_word=''
@@ -2874,7 +2883,6 @@ gotoui_update() {
 				fi
 				# invoke rcjs to find unique match under shortcuts
 				## make sure ${keywords[@]} isn't double-quoted, as that would convert the keywords list into a single keyword.
-				local matched_absolute_path
 				matched_absolute_path="$( gotoh_recursive_json_search "-sc" ${keywords[@]} )"
 
 				# process the rcjs results
@@ -2883,14 +2891,9 @@ gotoui_update() {
 				then
 					gotoh_output "No unique match found."
 					return $gotocode_no_unique_match
-				
 				# else, single match, then update.
 				else
-					local matched_keyword_path="$( gotoh_print_path "${matched_absolute_path}" )"
-					gotoh_update "-sc" "$matched_absolute_path" "$field_specifier" "$field_content" \
-						&& gotoh_output "Successfully updated shortcut '${matched_keyword_path}'" \
-						"with new ${field_specifier_word} '${field_content}'"
-					return $gotocode_success
+					ready_to_update=1
 				fi
 				;;
 			*)
@@ -2900,6 +2903,63 @@ gotoui_update() {
 		esac
 	
 	# end if-else on argument number checks
+	fi
+
+	# now that we're left with updating the field, do some final field content processing, then call the update helper & update accordingly
+	## when field specifier is '-n', process the field content to reduce absolute path to relative path if possible
+	if [ "$field_specifier" = "-n" ]
+	then
+		### check if the parent of the match is a dir.
+		###   if so, shorten the destination to a relative path using substitution.
+		#### this exact algorithm is replicated in gotoui_create, with the exception that, here, the parent needs to first be obtained, while the parent is the match in create.
+		local parent_absp="$( jq -c ".[:length-2]" <<< "${matched_absolute_path}" )"
+		local parent_type="$( jq -r "getpath(${parent_absp})|.type" "$gotov_json_filepath" )"
+		# only if parent type is dir do we do relative path substitution.
+		if [ "$parent_type" = "d" ]
+		then
+			# first obtain parent's destination
+			local parent_destination="$( jq -r "getpath(${parent_absp})|.destination" "$gotov_json_filepath" )"
+
+			# determine absolute filepath before removing it from destination
+			local parent_absolute_filepath build_status
+			# if parent's destination is absolute, directly set parent absolute filepath to field content. if it's relative, build the absolute path using parent json path.
+			local re_absp='^\/'
+			if [[ "$parent_destination" =~ $re_absp ]]
+			then
+				parent_absolute_filepath="$parent_destination"
+				build_status=0
+			else
+				# build the parent's absolute filepath
+				parent_absolute_filepath="$( gotoh_build_absolute_filepath "${parent_absp}" )"
+				build_status=$?
+			fi
+
+			# remove absolute filepath from destination
+			if [ "$build_status" -eq 0 ]
+			then
+				# only if successfully built a path, do relpath reduction.
+				## remove ending slash if it was in there
+				parent_absolute_filepath="${parent_absolute_filepath%\/}"
+				# >&2 echo "parent destination: $parent_absolute_filepath" # diagnostic
+				# remove the absolute filepath prefix with an ending slash from field content
+				field_content="${field_content#${parent_absolute_filepath}\/}"
+			fi # end if on successful build status
+		fi # end if on parent type == d
+	fi # end if on field specifier == -n
+
+	## since gotoh_update requires matched_absolute_path, field_specifier, and field_content, we need to declare them outside of the if-else statement above
+	if [ "$ready_to_update" -eq 1 ]
+	then
+		local matched_keyword_path="$( gotoh_print_path "${matched_absolute_path}" )"
+		gotoh_update "-sc" "$matched_absolute_path" "$field_specifier" "$field_content" \
+			&& gotoh_output "Successfully updated shortcut '${matched_keyword_path}'" \
+			"with new ${field_specifier_word} '${field_content}'"
+		return $gotocode_success
+	else
+		gotoh_output \
+			"Not ready to update for some reason." \
+			"This should not happen."
+		return $gotocode_ui_operation_failed
 	fi
 
 }
