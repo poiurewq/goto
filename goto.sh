@@ -25,10 +25,15 @@
 #     otenv
 #     otpt
 #     vbotpt
-#     simusg
-#     dtusg
+#     flgr
+#     ctpt
+#     ptnl
 #     opvsn
 #     opttl
+#     simusg
+#     dtusg
+#   compdefs
+#     cmpgt
 # -- bootstrapping --
 # ftbtdf
 #   ssbtvdef
@@ -84,6 +89,7 @@
 #     hbsc
 #     hbst
 #   brui
+# crudcomp
 # cruduix
 # -- goto ui --
 # gtui
@@ -92,37 +98,37 @@
 
 # == Notes ntt ==
 # iteration note: 
-#   v0.1.0: combines & generalizes the functionality of goto and course from before 2022-12-24. the aim is ease-of-use and ease-of-keyword-definition.
-#   v0.2.0: improve jq invocations. add settings so that usage is non-interactive. only bootstrap algorithms remain obligatorily interactive.
-#   v0.3.0: add goto.json crud: both non-interactive and interactive.
-#   v0.4.0: add goto.json browse. `goto -b`
-#   v0.5.0: add a neat title screen. `goto --title`
-#   future: add move operation.
+## v0.1.0: combines & generalizes the functionality of goto and course from before 2022-12-24. the aim is ease-of-use and ease-of-keyword-definition.
+## v0.2.0: improve jq invocations. add settings so that usage is non-interactive. only bootstrap algorithms remain obligatorily interactive.
+## v0.3.0: add goto.json crud: both non-interactive and interactive.
+## v0.4.0: add goto.json browse. `goto -b`
+## v0.5.0: add a neat title screen. `goto --title`
+## for more notes on iteration, see git log
 # file note: this is a sourced script. no need for chmod +x. no need for loading definition upon startup. needs insertion of an alias in bash profile.
 # dependencies: jq
 
 # -- json format jsnfmt --
 # There are two major sections to goto.json
-#   settings, shortcuts
-#   settings are where the settings are updated and stored.
-#   shortcuts are where the shortcuts are crud-ed.
+## settings, shortcuts
+## settings are where the settings are updated and stored.
+## shortcuts are where the shortcuts are crud-ed.
 # Understanding shortcuts & settings:
-#   Each setting is specified by a unique "keyword" string. This string should be simple for the user to type and remember.
-#   Each shortcut is specified by a "keyword" string (not necessarily unique). This string should be simple for the user to type and remember.
-#   Each setting/shortcut has a "description" field. This explains to the user what this setting/shortcut represents. You should strive for description to be descriptive. But it doesn't have to be unique.
-#   Each setting has an optional "content": contains instructions for how the program behaves. 
-#   Each shortcut has an optional "destination": contains the path or link to the desired destination. 
-#   Each setting has a "type":
-#     t = topic (content: null)
-#     s = setting (content: setting string)
-#   Each shortcut has a "type":
-#     t = topic (destination: null)
-#     d = directory (destination: always full path!)
-#     f = file (destination: full filename)
-#     l = link (destination: rlist id)
+## Each setting is specified by a unique "keyword" string. This string should be simple for the user to type and remember.
+## Each shortcut is specified by a "keyword" string (not necessarily unique). This string should be simple for the user to type and remember.
+## Each setting/shortcut has a "description" field. This explains to the user what this setting/shortcut represents. You should strive for description to be descriptive. But it doesn't have to be unique.
+## Each setting has an optional "content": contains instructions for how the program behaves. 
+## Each shortcut has an optional "destination": contains the path or link to the desired destination. 
+## Each setting has a "type":
+### t = topic (content: null)
+### s = setting (content: setting string)
+## Each shortcut has a "type":
+### t = topic (destination: null)
+### d = directory (destination: always full path!)
+### f = file (destination: full filename)
+### l = link (destination: rlist id)
 # Every setting, except for the main setting topic, does not have a list.
 # Every shortcut is optionally recursive, with recursion indicated by whether its "list" is null.
-#   Therefore, every shortcut can have a list of sub-shortcuts.
+## Therefore, every shortcut can have a list of sub-shortcuts.
 
 # -- input format nptfmt --
 # $@ = keyword path: could be a course, a topic like 'learn', etc. if it's a unique keyword or if it's a unique keyword path, go there following the keyword's hierarchical path. if it's not unique, require clarification.
@@ -136,7 +142,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.7.3-a.0+20230307133336"
+gotov_semver="v0.7.4-a.0+20230421014532"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -177,16 +183,16 @@ export GOTO_VERBOSE_SETTING='on'
 export GOTO_FLAG_COUNTER=0
 
 # Output vs Verbose output:
-#   By convention, all bootstrap outputs should be unconditionally output.
+## By convention, all bootstrap outputs should be unconditionally output.
 
 # -- otpt --
 # Input
-#   sentences as input tokens
+## sentences as input tokens
 # Output
-#   a nicely indented set of sentences
+## a nicely indented set of sentences
 # Notes
-#   The output is sent to stderr so as not to conflict with the echo-return of functions
-#   By convention, often called from gotoui_* functions, since they are used to inform the user of the program status.
+## The output is sent to stderr so as not to conflict with the echo-return of functions
+## By convention, often called from gotoui_* functions, since they are used to inform the user of the program status.
 gotoh_output() {
 	# nicely print the sentence tokens
 	local sentence
@@ -197,13 +203,13 @@ gotoh_output() {
 
 # -- vbotpt --
 # Input
-#   sentences as input tokens
+## sentences as input tokens
 # Output
-#   Only when the verbose setting is on do you output.
-#   The name of the caller function only if it is not the same calling function as the previous one
-#   followed by a nicely indented set of sentences
+## Only when the verbose setting is on do you output.
+## The name of the caller function only if it is not the same calling function as the previous one
+## followed by a nicely indented set of sentences
 # Notes
-#   the output is sent to stderr so as not to conflict with the echo-return of functions
+## the output is sent to stderr so as not to conflict with the echo-return of functions
 gotoh_verbose() {
 	if [ "$GOTO_VERBOSE_SETTING" = "on" ]
 	then
@@ -245,14 +251,14 @@ gotoh_version() {
 
 # -- helper for center-printing ctpt --
 # output $1 to the center of the screen
-#   credit to https://superuser.com/questions/823883/how-to-justify-and-center-text-in-bash
+## credit to https://superuser.com/questions/823883/how-to-justify-and-center-text-in-bash
 gotoh_center_print() {
 	local str="$1"
 	local cols=$( tput cols )
 	printf "%*s\n" $(( (${#str} + cols ) / 2 )) "${str}"
 }
 
-# -- helper for printing several newlines --
+# -- helper for printing several newlines ptnl --
 gotoh_newlines() {
 	local lines="$1"
 	local each_line
@@ -380,13 +386,18 @@ other usage:
 GOTO_DETAILED_USAGE
 }
 
+# == autocomplete helper functions compdefs ==
+
+# -- completion helper for goto cmpgt --
+
+
 # == extracting delimited strings xtrs ==
 # Input
 #   $1 = a string
 #   $2 = the delimiter by which to chop up the string
 #   $3 = 0-based index of the substring to extract
 # Output
-#   echo: the appropriate substring
+## echo: the appropriate substring
 gotoh_extract_substring() {
 	local string="$1"
 	IFS="$2"
@@ -423,7 +434,7 @@ gotov_alias_definition="alias goto='source ${gotov_dest_filepath}'"
 # == first-time bootstrap confirmation ftbtconf ==
 # FIRSTTIME=TRUE
 # Check for first time.
-#   If first time, ask user for confirmations, then set first time to false. Else skip.
+## If first time, ask user for confirmations, then set first time to false. Else skip.
 # This subroutine is obligatorily interactive.
 gotov_firsttime_status=false
 gotov_firsttime_line="$( grep -n "[F]IRSTTIME=TRUE" "${gotov_current_filepath}" )"
@@ -556,7 +567,7 @@ then
 fi
 
 # search bash profile for the alias definition.
-#   if found, then skip. if not found, then add.
+## if found, then skip. if not found, then add.
 tmptrash="$(grep "$gotov_alias_definition" "$gotov_alias_filepath")"
 if [ $? -ne 0 ]
 then
@@ -598,14 +609,14 @@ gotov_settings_options=()
 gotov_settings_contents=()
 
 # set up individual settings indices
-#   a bunch of settings keyword indices: used in keywords array and in actual settings json
+## a bunch of settings keyword indices: used in keywords array and in actual settings json
 gotolv_setting_index=0
 
 # shortcut multipath: setting for when to display the paths when a search returns multiple paths.
-#   always: always show the paths and go no further.
-#   depth >= n: if all matches have a depth greater than or equal to n (with parent-child being depth of 1), then show the paths and go no further. 
-#     the simultaneous assumption is that, if there is exactly one match with depth less than n, then go there. if there are multiple matches with depth less than n, then still display the paths.
-#   default is 'depth >= 2', which means if we have a single [depth = 1] match, we go there. else we show paths and quit.
+## always: always show the paths and go no further.
+## depth >= n: if all matches have a depth greater than or equal to n (with parent-child being depth of 1), then show the paths and go no further. 
+### the simultaneous assumption is that, if there is exactly one match with depth less than n, then go there. if there are multiple matches with depth less than n, then still display the paths.
+## default is 'depth >= 2', which means if we have a single [depth = 1] match, we go there. else we show paths and quit.
 gotov_shortcut_multipath=$((gotolv_setting_index++)) # this post-increments setting index
 gotov_settings_options[gotov_shortcut_multipath]="always;depth >= [n]"
 gotov_settings_keywords[gotov_shortcut_multipath]="sc_multipath"
@@ -615,10 +626,10 @@ gotolv_shortcut_multipath_initial_content="$( gotoh_extract_substring "${gotov_s
 gotov_settings_contents[gotov_shortcut_multipath]="${gotolv_shortcut_multipath_initial_content/\[n\]/2}"
 
 # filesystem multipath: setting for when to display the paths when a filesystem find returns multiple paths.
-#   always: always show the paths and go no further.
-#   depth >= n: if all matches have a depth greater than or equal to n (with parent-child being depth of 1), then show the paths and go no further. 
-#     the simultaneous assumption is that, if there is exactly one match with depth less than n, then go there. if there are multiple matches with depth less than n, then still display the paths.
-#   default is 'depth >= 2', which means if we have a single [depth = 1] match, we go there. else we show paths and quit.
+## always: always show the paths and go no further.
+## depth >= n: if all matches have a depth greater than or equal to n (with parent-child being depth of 1), then show the paths and go no further. 
+### the simultaneous assumption is that, if there is exactly one match with depth less than n, then go there. if there are multiple matches with depth less than n, then still display the paths.
+## default is 'depth >= 2', which means if we have a single [depth = 1] match, we go there. else we show paths and quit.
 gotov_filesystem_multipath=$((gotolv_setting_index++))
 gotov_settings_options[gotov_filesystem_multipath]="always;depth >= [n]"
 gotov_settings_keywords[gotov_filesystem_multipath]="fs_multipath"
@@ -628,9 +639,9 @@ gotolv_filesystem_multipath_initial_content="$( gotoh_extract_substring "${gotov
 gotov_settings_contents[gotov_filesystem_multipath]="${gotolv_filesystem_multipath_initial_content/\[n\]/2}"
 
 # shortcut_partial: setting for whether to directly go if only a part of the keyword sequence matches in shortcuts tree
-#   on means go to match even for partial match. if there's no match at all, then quit and don't continue to find.
+## on means go to match even for partial match. if there's no match at all, then quit and don't continue to find.
 # 	off implies continue to find if no match or partial match.
-#   default is 'off', so we continue to find if no match.
+## default is 'off', so we continue to find if no match.
 gotov_shortcut_partial=$((gotolv_setting_index++))
 gotov_settings_options[gotov_shortcut_partial]="on;off"
 gotov_settings_keywords[gotov_shortcut_partial]="sc_partial"
@@ -641,7 +652,7 @@ gotov_settings_contents[gotov_shortcut_partial]="$( gotoh_extract_substring "${g
 # filesystem_partial: setting for whether to directly go if only a part of the keyword sequence matches when calling find() in filesystem
 # 	on means goto match even for partial match (of any filetype), or for a find match that is a file (since it's terminal).
 # 	off means quit if only partial match
-#   default is 'on', so we go to partial match.
+## default is 'on', so we go to partial match.
 # default: on
 gotov_filesystem_partial=$((gotolv_setting_index++))
 gotov_settings_options[gotov_filesystem_partial]="on;off"
@@ -650,9 +661,9 @@ gotov_settings_descriptions[gotov_filesystem_partial]="When the keyword sequence
 gotov_settings_contents[gotov_filesystem_partial]="$( gotoh_extract_substring "${gotov_settings_options[gotov_filesystem_partial]}" ';' "0" )"
 
 # verbose: setting for whether to output in a verbose manner to stderr. helpful for debugging.
-#   on means turn on gotoh_output
-#   off means turn off gotoh_output
-#   default is 'off'
+## on means turn on gotoh_output
+## off means turn off gotoh_output
+## default is 'off'
 gotov_verbose=$((gotolv_setting_index++))
 gotov_settings_options[gotov_verbose]="on;off"
 gotov_settings_keywords[gotov_verbose]="verbose"
@@ -660,11 +671,11 @@ gotov_settings_descriptions[gotov_verbose]="Whether to output details of the pro
 gotov_settings_contents[gotov_verbose]="$( gotoh_extract_substring "${gotov_settings_options[gotov_verbose]}" ';' "1" )"
 
 # dir_opener: setting for how to open directories.
-#   cd: calls 'cd', so simply changes the directory.
-#   system: calls the 'open' command, so the opener is system-dependent
-#   cdl: calls 'cd, then ls', so changes dir & displays contents.
-#   cdll: calls 'cd, then ls -l', so changes dir & displays contents in detailed format.
-#   default is 'cd'
+## cd: calls 'cd', so simply changes the directory.
+## system: calls the 'open' command, so the opener is system-dependent
+## cdl: calls 'cd, then ls', so changes dir & displays contents.
+## cdll: calls 'cd, then ls -l', so changes dir & displays contents in detailed format.
+## default is 'cd'
 gotov_dir_opener=$((gotolv_setting_index++))
 gotov_settings_options[gotov_dir_opener]="system;cd;cdl;cdll;pushd;pushdl"
 gotov_settings_keywords[gotov_dir_opener]="dir_opener"
@@ -673,9 +684,9 @@ gotov_settings_contents[gotov_dir_opener]="$( gotoh_extract_substring "${gotov_s
 
 
 # link_opener: setting for how to open links.
-#   system: calls the 'open' command, so the opener is system-dependent
-#   rlist: calls 'rlist', which is a custom script I use for tracking links.
-#   default is 'system'
+## system: calls the 'open' command, so the opener is system-dependent
+## rlist: calls 'rlist', which is a custom script I use for tracking links.
+## default is 'system'
 gotov_link_opener=$((gotolv_setting_index++))
 gotov_settings_options[gotov_link_opener]="auto;rlist;personal;school"
 gotov_settings_keywords[gotov_link_opener]="link_opener"
@@ -683,9 +694,9 @@ gotov_settings_descriptions[gotov_link_opener]="Determines how links are opened.
 gotov_settings_contents[gotov_link_opener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_link_opener]}" ';' "0" )"
 
 # code_opener: setting for how to open code-format files: .md, .json, .sh
-#   vim: opened with vim.
-#   vscode: opened with VSCode (if it exists).
-#   default is 'vim'
+## vim: opened with vim.
+## vscode: opened with VSCode (if it exists).
+## default is 'vim'
 gotov_code_opener=$((gotolv_setting_index++))
 gotov_settings_options[gotov_code_opener]="vim;vscode"
 gotov_settings_keywords[gotov_code_opener]="code_opener"
@@ -693,8 +704,8 @@ gotov_settings_descriptions[gotov_code_opener]="Determines how code files are op
 gotov_settings_contents[gotov_code_opener]="$( gotoh_extract_substring "${gotov_settings_options[gotov_code_opener]}" ';' "0" )"
 
 # show_children: setting for whether goto --read shows the children of the desired shortcut.
-#   on / off
-#   default is 'off'
+## on / off
+## default is 'off'
 gotov_show_children=$((gotolv_setting_index++))
 gotov_settings_options[gotov_show_children]="on;off"
 gotov_settings_keywords[gotov_show_children]="show_children"
@@ -702,8 +713,8 @@ gotov_settings_descriptions[gotov_show_children]="Determines whether goto -r | g
 gotov_settings_contents[gotov_show_children]="$( gotoh_extract_substring "${gotov_settings_options[gotov_show_children]}" ';' "1" )"
 
 # fs_fuzzy: setting for whether filesystem search uses exact or fuzzy search on the keywords.
-#   on / off
-#   default is 'on'
+## on / off
+## default is 'on'
 gotov_fs_fuzzy=$((gotolv_setting_index++))
 gotov_settings_options[gotov_fs_fuzzy]="on;off"
 gotov_settings_keywords[gotov_fs_fuzzy]="fs_fuzzy"
@@ -722,7 +733,7 @@ unset -v gotolv_setting_index
 if ! [ -f "$gotov_json_filepath" ]
 then
 	# here, do some shenanigans to initialize the json file
-	#   here we build the jq input string for the settings object
+	## here we build the jq input string for the settings object
 	gotolv_jq_init_settings='{keyword: "settings", description: "goto.sh settings", type: "t", content: null, list: ['
 	gotolv_number_of_settings="${#gotov_settings_keywords[@]}"
 	gotolv_last_setting_index=$(( gotolv_number_of_settings - 1 ))
@@ -742,7 +753,7 @@ then
 	done
 	gotolv_jq_init_settings+=']}'
 
-	#   here we build the jq input string for the shortcuts object
+	## here we build the jq input string for the shortcuts object
 	read -r -d '' gotolv_jq_init_shortcuts <<'EOF'
 	{ keyword: "root", description: "root of all shortcuts", type: "t", destination: null, list: 
 		[{ keyword: "goto", description: "The goto.sh file", type: "f", destination: $gtv_dest_filepath, list: 
@@ -751,13 +762,13 @@ then
 	}
 EOF
 
-	#   here we assemble the final json format for the jq to read.
+	## here we assemble the final json format for the jq to read.
 	gotolv_jq_init_input='['
 	gotolv_jq_init_input+="${gotolv_jq_init_settings},"
 	gotolv_jq_init_input+="${gotolv_jq_init_shortcuts}"
 	gotolv_jq_init_input+=']'
-	#   here we use jq -n --tab to construct json data, since it's built for json and easier to maintain.
-	#     the $vars are jq vars, not bash vars (see jq command --arg to understand).
+	## here we use jq -n --tab to construct json data, since it's built for json and easier to maintain.
+	### the $vars are jq vars, not bash vars (see jq command --arg to understand).
 	gotov_json_init="$( jq -n --tab \
 		--arg gtv_dest_filepath $gotov_dest_filepath \
 		--arg gtv_json_filepath $gotov_json_filepath \
@@ -855,8 +866,8 @@ unset -v tmptrash
 # == unset a single group of names nstnm ==
 # Input
 #   $1 = -v / -f
-#     -v means variables
-#     -f means functions
+### -v means variables
+### -f means functions
 #   $2 = grep pattern used to match names
 gotoh_unset() {
 	# input vars
@@ -897,7 +908,7 @@ gotoh_unset() {
 # Input: none
 # Output: none
 # Behavior
-#   unsets all potential namespace polluters from goto.sh
+## unsets all potential namespace polluters from goto.sh
 gotoh_unset_all() {
 	gotoh_unset '-v' 'gotocode'
 	# gotoh_unset '-v' 'gotolv' # don't unset this. make sure to unset these where they are used.
@@ -911,12 +922,12 @@ gotoh_unset_all() {
 # Input
 #   $1: absolute path to a node
 # Output
-#   echo: a string of the form 'A -> B -> C' for the node, to stderr, NOT stdout
-#   code: the length of the path
+## echo: a string of the form 'A -> B -> C' for the node, to stderr, NOT stdout
+## code: the length of the path
 # Behavior
-#   steps through starting from the respective root to the end, getting the .keyword for the nodes on the path.
+## steps through starting from the respective root to the end, getting the .keyword for the nodes on the path.
 # Invariants:
-#   must be the absolute path, starting from the very root of goto.json
+## must be the absolute path, starting from the very root of goto.json
 # Dependencies: none
 gotoh_print_path() {
 
@@ -926,25 +937,25 @@ gotoh_print_path() {
 	# step through the path and build the path string
 
 	# get the length of the path
-	#   build path length filter and get path length
+	## build path length filter and get path length
 	path_length="$( jq -n "${absolute_path}|length" )"
 	# echo "Path length: ${path_length}" # diagnostic
 
 	local path_display_string each_step_separator each_step
 	# construct the path by following from root
 	path_display_string=''
-	#   separator
+	## separator
 	each_step_separator=''
-	#   increment two steps at a time through the path
-	#     we start off at 1, because jq syntax .[:1] means up to but not including 1.
+	## increment two steps at a time through the path
+	### we start off at 1, because jq syntax .[:1] means up to but not including 1.
 	for each_step in $(seq 1 2 ${path_length})
 	do
 		local each_step_keyword_filter each_step_keyword
 		# get each step's keyword
-		#   build filter for each step
-		#   build filter for each step's keyword
+		## build filter for each step
+		## build filter for each step's keyword
 		each_step_keyword_filter="getpath(${absolute_path}|.[:${each_step}])|.keyword"
-		#   get the keyword & quit if encounter error
+		## get the keyword & quit if encounter error
 		each_step_keyword="$( jq -r "$each_step_keyword_filter" "${gotov_json_filepath}" )"
 		if [ $? -ne 0 ]
 		then
@@ -965,33 +976,33 @@ gotoh_print_path() {
 # == recursive json search rcsjs ==
 # Input
 #   $1: -st / -sc
-#     -st means search in settings
-#     -sc means search in shortcuts
+### -st means search in settings
+### -sc means search in shortcuts
 #   ${@:2}: list of keywords
 # Output
-#   echo: 
-#     If fully matched, then absolute path to the located node in goto.json
-#     If partially matched with keywords, then regardless of partial setting, echo absolute path.
-#     If first keyword not found, then nada
-#     If multiple matches, then returns the string 'multiple'
-#   code:
-#     If fully, partially (regardless of partial setting), or not matched, then return the (0-based) index 
-#     of the last unmatched keyword in the input keywords array ${@:2}. 
-#       In other words, if given 5 keywords and all matched, 
-#       then the code is 5. If 4 matched, then the code is 4 as that is
-#       the index of the last unmatched keyword in the keywords array.
-#     If multiple matches, return the number of matches.
+## echo: 
+### If fully matched, then absolute path to the located node in goto.json
+### If partially matched with keywords, then regardless of partial setting, echo absolute path.
+### If first keyword not found, then nada
+### If multiple matches, then returns the string 'multiple'
+## code:
+### If fully, partially (regardless of partial setting), or not matched, then return the (0-based) index 
+### of the last unmatched keyword in the input keywords array ${@:2}. 
+#### In other words, if given 5 keywords and all matched, 
+#### then the code is 5. If 4 matched, then the code is 4 as that is
+#### the index of the last unmatched keyword in the keywords array.
+### If multiple matches, return the number of matches.
 # Invariants
-#   has access to a properly initialized gotov_json_filepath
-#   has access to a properly initialized gotov_shortcut_multipath_setting
-#   the -st/-sc input is always in the first position.
+## has access to a properly initialized gotov_json_filepath
+## has access to a properly initialized gotov_shortcut_multipath_setting
+## the -st/-sc input is always in the first position.
 # Dependencies
-#   gotoh_output
+## gotoh_output
 # Behavior
-#   searches for a particular node in settings or shortcuts that matches
-#   the given keyword sequence A B C such that the path
-#   A (-> ...) -> B (-> ...) -> C goes to the shortcut.
-#   returns according to Output specified above
+## searches for a particular node in settings or shortcuts that matches
+## the given keyword sequence A B C such that the path
+## A (-> ...) -> B (-> ...) -> C goes to the shortcut.
+## returns according to Output specified above
 gotoh_recursive_json_search() {
 	# set up input variables
 	local subset_option="$1"
@@ -1025,7 +1036,7 @@ gotoh_recursive_json_search() {
 	while [ $current_unmatched_keyword_index -lt $number_of_keywords ]
 	do
 		# as the first step of our keyword sequence loop, increment keyword index.
-		#   as first iteration begins, this index is 0
+		## as first iteration begins, this index is 0
 		(( current_unmatched_keyword_index ++ ))
 		
 		# = count matches jscm =
@@ -1033,14 +1044,14 @@ gotoh_recursive_json_search() {
 		local current_keyword="${keywords[current_unmatched_keyword_index]}"
 
 		# jq search for object(s) matching keyword
-		#   build (inner) object filter
-		#     note that \\\\ becomes \\ in the regex, which is then used to escape the pipe: \\|
-		#     this filter looks for current keyword optionally surrounded by pipes for the multi-keyword entries
+		## build (inner) object filter
+		### note that \\\\ becomes \\ in the regex, which is then used to escape the pipe: \\|
+		### this filter looks for current keyword optionally surrounded by pipes for the multi-keyword entries
 		current_objects_filter+="|recurse(.list[]?)|select(.keyword|test(\"^(.*\\\\|)?${current_keyword}(\\\\|.*)?$\"))"
 		# echo "${current_objects_filter}" # checkpoint
 
 		# count number of matches
-		#   count matches
+		## count matches
 		local current_number_of_matches="$( jq "[${current_objects_filter}]|length" "${gotov_json_filepath}" )"
 		gotoh_verbose "current number of matches: $current_number_of_matches" "current unmatched keyword index: $current_unmatched_keyword_index"
 
@@ -1052,8 +1063,8 @@ gotoh_recursive_json_search() {
 		# = if-else over match count jsmc =
 		# - 0 matches jsnm -
 		# if no match, then check
-		#   if there was a match in the previous sequence, decide whether to go to partial match according to
-		#   shortcut_partial setting or quit.
+		## if there was a match in the previous sequence, decide whether to go to partial match according to
+		## shortcut_partial setting or quit.
 		if [ "${current_number_of_matches}" -eq 0 ]
 		then
 			
@@ -1076,14 +1087,14 @@ gotoh_recursive_json_search() {
 		elif [ "${current_number_of_matches}" -eq 1 ]
 		then
 			# get object for future use
-			#   get absolute path
+			## get absolute path
 			gotoh_verbose "Single match for current keyword sequence '${current_matched_keyword_sequence// / -> }'"
 			# >&2 echo path(${current_objects_filter})|.[0]" # diagnostic
 			last_match_absolute_path="$( jq "path(${current_objects_filter})" "${gotov_json_filepath}" )"
 
 		# - multiple matches jsmm -
 		# elif multiple matches, depending on shortcut multipath setting, directly return absolute path or print all paths and quit.
-		#   also, no matter what, we MUST echo either 'multiple' or an absolute path from any exit under this condition
+		## also, no matter what, we MUST echo either 'multiple' or an absolute path from any exit under this condition
 		elif [ "${current_number_of_matches}" -gt 1 ]
 		then
 			gotoh_verbose "You have entered a multi-match situation with $current_number_of_matches matches."
@@ -1091,12 +1102,12 @@ gotoh_recursive_json_search() {
 			# check shortcut multipath setting
 			local print_all_paths=false
 
-			#   if always, then show
+			## if always, then show
 			if [ "$gotov_shortcut_multipath_setting" = "always" ]
 			then
 				echo 'multiple'
 				print_all_paths=true
-			#   else, examine the depths according to the rule (see shortcut multipath setting description)
+			## else, examine the depths according to the rule (see shortcut multipath setting description)
 			else
 				# process the depth setting
 				local shortcut_multipath_setting_depth="${gotov_shortcut_multipath_setting/depth >= /}"
@@ -1116,9 +1127,9 @@ gotoh_recursive_json_search() {
 				local path_length_threshold=$(( parent_path_length + shortcut_multipath_setting_depth * 2 ))
 
 				# count the number of paths that are below threshold
-				#   build a jq filter that determines the number of paths of length < 2n (depth = n)
+				## build a jq filter that determines the number of paths of length < 2n (depth = n)
 				local under_threshold_path_count_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|length"
-				#   count the number of paths (matches) that are below the depth threshold
+				## count the number of paths (matches) that are below the depth threshold
 				local under_threshold_path_count="$( jq "${under_threshold_path_count_filter}" "${gotov_json_filepath}" )"
 
 				# if-else condition over the number of paths under the threshold (candidate paths to return)
@@ -1170,12 +1181,12 @@ gotoh_recursive_json_search() {
 				do
 					# build path filter
 					local each_match_index each_path_filter each_path_length
-					#   get the index number of each match
+					## get the index number of each match
 					each_match_index=$((each_match - 1))
-					#   build path filter
+					## build path filter
 					each_path_filter="[path(${current_objects_filter})]|.[${each_match_index}]"
 					local each_absolute_path each_path_display_string
-					#   get each absolute path
+					## get each absolute path
 					each_absolute_path="$( jq "${each_path_filter}" "${gotov_json_filepath}" )"
 					each_path_display_string="$( gotoh_print_path "${each_absolute_path}" )"
 					# output the path
@@ -1213,14 +1224,14 @@ gotoh_recursive_json_search() {
 # Input
 #   $1 = jq-style absolute path
 # Output
-#   jq-style absolute path to the parent, or nothing
-#   return code 0 for success, 1 for failure, 2 for no parent
+## jq-style absolute path to the parent, or nothing
+## return code 0 for success, 1 for failure, 2 for no parent
 # Behavior
-#   Given the shortcut, if it has a parent shortcut, returns that parent shortcut's absolute path.
+## Given the shortcut, if it has a parent shortcut, returns that parent shortcut's absolute path.
 # Invariants
-#   assumes that the absolute path is a valid shortcut
+## assumes that the absolute path is a valid shortcut
 # Dependencies
-#   none
+## none
 gotoh_get_parent_path() {
 	# get child shortcut
 	local absolute_path="$1"
@@ -1249,16 +1260,16 @@ gotoh_get_parent_path() {
 # Input
 #   $1 = jq-style absolute path to a shortcut that has a relative path as its destination
 # Output
-#   an absolute filesystem path built from shortcut and its parents, all the way up to some absolute path.
-#   return code 0 for success, 1 for relative paths all the way up, 2 for when a parent up the chain is not a 'd' even thought the destinations of the shortcuts leading up to it from the starting shortcut are all relative paths.
+## an absolute filesystem path built from shortcut and its parents, all the way up to some absolute path.
+## return code 0 for success, 1 for relative paths all the way up, 2 for when a parent up the chain is not a 'd' even thought the destinations of the shortcuts leading up to it from the starting shortcut are all relative paths.
 # Behavior
-#   Given the shortcut, returns its full filesystem absolute path
+## Given the shortcut, returns its full filesystem absolute path
 # Invariants
-#   assumes that the absolute path is a valid shortcut
-#   assumes ability to access gotov_json_filepath
-#   assumes that the shortcut is of type 'd' or 'f', so that it has a filesystem path to begin with.
+## assumes that the absolute path is a valid shortcut
+## assumes ability to access gotov_json_filepath
+## assumes that the shortcut is of type 'd' or 'f', so that it has a filesystem path to begin with.
 # Dependencies
-#   gotoh_get_parent_path
+## gotoh_get_parent_path
 gotoh_build_absolute_filepath() {
 	# set up absolute json path variable
 	local starting_jsonpath="$1"
@@ -1336,16 +1347,16 @@ gotoh_build_absolute_filepath() {
 # helper doesn't check for proper input. maintain good calling etiquette.
 # Input
 #   $1 = type code: consistent with the .type field (all except 't')
-#     d = directory
-#     f = file
-#     l = link
+### d = directory
+### f = file
+### l = link
 #   $2 = destination: consistent with the .destination field
 # Output: none
 # Behavior
-#   goes to the destination specified by the inputs
-#   certain settings can change how the destinations are opened.
+## goes to the destination specified by the inputs
+## certain settings can change how the destinations are opened.
 # Invariants
-#   the inputs are properly given
+## the inputs are properly given
 # Dependencies: none
 gotoh_go() {
 	local type="$1"
@@ -1421,20 +1432,20 @@ gotoh_go() {
 # Input
 #   $1 = jq-style absolute path to access the shortcut to open
 # Output
-#   no echo
-#   normal return 0
-#   if type is 'topic', then return 2
-#   if failed due to incorrect relative path backtracing, then return 3
+## no echo
+## normal return 0
+## if type is 'topic', then return 2
+## if failed due to incorrect relative path backtracing, then return 3
 # Behavior
-#   opens the destination specified at the absolute path in goto.json
-#     if the destination is a relative filesystem path, then first builds the absolute filepath by 
-#     tracing to its parent(s), adding path prefixes along the way.
+## opens the destination specified at the absolute path in goto.json
+### if the destination is a relative filesystem path, then first builds the absolute filepath by 
+### tracing to its parent(s), adding path prefixes along the way.
 # Invariants
-#   assumes that the absolute path is a valid shortcut
-#   assumes ability to access gotov_json_filepath
+## assumes that the absolute path is a valid shortcut
+## assumes ability to access gotov_json_filepath
 # Dependencies
-#   gotoh_go
-#   gotoh_build_absolute_filepath
+## gotoh_go
+## gotoh_build_absolute_filepath
 gotoh_open_path() {
 	# get the input path
 	local absolute_path="$1"
@@ -1484,11 +1495,11 @@ gotoh_open_path() {
 #   $1 = a string representing the jq command that updates the goto.json. 
 #   $2 = an optional number to set as the threshold for change being too large
 # Output
-#   echo: nothing
-#   code: 0 for success; 1 for jq error; 2 for change being too dramatic.
+## echo: nothing
+## code: 0 for success; 1 for jq error; 2 for change being too dramatic.
 # Behavior
-#   Performs in-place editing of the goto.json file.
-#   Also performs a sanity check (line number difference no greater than 6) to make sure the edit isn't too dramatic.
+## Performs in-place editing of the goto.json file.
+## Also performs a sanity check (line number difference no greater than 6) to make sure the edit isn't too dramatic.
 gotoh_overwrite_json() {
 	# set up input variable
 	local update_instruction="$1"
@@ -1527,22 +1538,22 @@ gotoh_overwrite_json() {
 	fi
 
 	# if difference check passed, update the actual file using mv,
-	#   which is (possibly?) better than cat because it's atomic.
+	## which is (possibly?) better than cat because it's atomic.
 	mv "$tmp_json" "$gotov_json_filepath"
 }
 
 # == helper to create node hlpc ==
 # Input
-#   absolute path to parent
-#   new node's keyword, description, type, and destination
+## absolute path to parent
+## new node's keyword, description, type, and destination
 # Output: none
 # Behavior
-#   Defaults to working with shortcuts, since you can only create shortcuts, not settings.
-#   Creates a new shortcut node as a child of the parent
+## Defaults to working with shortcuts, since you can only create shortcuts, not settings.
+## Creates a new shortcut node as a child of the parent
 # Invariants
-#   This function makes no assumptions about whether we're creating a new node under a shortcut or a setting.
+## This function makes no assumptions about whether we're creating a new node under a shortcut or a setting.
 # Dependencies
-#   gotoh_overwrite_json, gotoh_output, gotoh_verbose
+## gotoh_overwrite_json, gotoh_output, gotoh_verbose
 # This is a non-interactive helper function
 # 'getpath([1, "list", 0, "list", 0, "list"])+=[{keyword:"fun",description:"fun things happened",type:"d",destination:"~",list:[]}]'
 gotoh_create() {
@@ -1565,7 +1576,7 @@ gotoh_create() {
 	fi
 
 	# build a json object for the new node. remember to include the list.
-	#   if destination is "null", we make it unquoted, so it's a json null.
+	## if destination is "null", we make it unquoted, so it's a json null.
 	local new_node_object
 	case "$destination" in
 		null|NULL|Null)
@@ -1607,14 +1618,14 @@ gotoh_create() {
 #   $1 = -sc / -st
 #   $2 = absolute path to node
 # Output
-#   neat print of node's information.
+## neat print of node's information.
 # Behavior
-#   grabs object at path
-#   prints information 
-#     shortcuts and settings have the same fields besides content/destination
+## grabs object at path
+## prints information 
+### shortcuts and settings have the same fields besides content/destination
 # Invariants
-#   assumes absolute path is valid (doesn't check)
-#   the object has the correct keys
+## assumes absolute path is valid (doesn't check)
+## the object has the correct keys
 # Dependencies: none
 gotoh_read() { 
 	# set up input variables
@@ -1637,7 +1648,7 @@ gotoh_read() {
 	local keyword="$( jq -nr "${object_to_read}|.keyword" )"
 	local description="$( jq -nr "${object_to_read}|.description" )"
 	local object_type="$( jq -nr "${object_to_read}|.type" )"
-	#   update description to encompass the type
+	## update description to encompass the type
 	description="<${object_type}> ${description}"
 	# get destination / content. note we're leaving these guys quoted.
 	local content
@@ -1650,9 +1661,9 @@ gotoh_read() {
 
 	# prepare the lines to print
 	local columns=$( tput cols )
-	#   next center-print the keyword line
+	## next center-print the keyword line
 	gotoh_center_print "${keyword}"
-	#   next center-print each segment of the description, with each segment no wider than columns - 8
+	## next center-print each segment of the description, with each segment no wider than columns - 8
 	local total_description_length=${#description}
 	local description_width=$(( columns - 8 ))
 	local current_description_segment=''
@@ -1663,7 +1674,7 @@ gotoh_read() {
 		gotoh_center_print "${current_description_segment}"
 		current_description_segment_starting_index=$(( current_description_segment_starting_index + description_width ))
 	done
-	#   finally center-print the destination / content, if it's not null of course.
+	## finally center-print the destination / content, if it's not null of course.
 	if [ "$content" != "null" ]
 	then
 		gotoh_center_print "${content}"
@@ -1679,16 +1690,16 @@ gotoh_read() {
 #   $4 = field content
 # Output: none
 # Behavior
-#   Depending on the subset option, updates one of 
-#     keyword (-k), description (-d), type (-t), or destination / content (-n)
-#     of the node specified by the absolute path.
+## Depending on the subset option, updates one of 
+### keyword (-k), description (-d), type (-t), or destination / content (-n)
+### of the node specified by the absolute path.
 # Invariants
-#   Takes exactly four arguments.
-#   Assumes that the provided k/d/t/n is of the correct format and content 
+## Takes exactly four arguments.
+## Assumes that the provided k/d/t/n is of the correct format and content 
 #     (i.e., gotoui_update has checked them already)
-#   Assumes that the node specified by the absolute path has the appropriate field.
+## Assumes that the node specified by the absolute path has the appropriate field.
 # Dependencies
-#   gotoh_overwrite_json
+## gotoh_overwrite_json
 # 'setpath([1, "list", 0, "list", 0, "keyword"]; "keyss")'
 gotoh_update() {
 	# check invariant
@@ -1710,7 +1721,7 @@ gotoh_update() {
 	fi
 	# construct the path_to_field
 	local path_to_field
-	#   if-else on the field_specifier to build the path_to_field
+	## if-else on the field_specifier to build the path_to_field
 	case "$field_specifier" in
 		-k) 
 			path_to_field="$( jq -c '.+=["keyword"]' <<< "$absolute_path" )"
@@ -1739,11 +1750,11 @@ gotoh_update() {
 	esac
 	# construct the update command
 	local update_command
-	#   if field_content is 'null', then don't quote null. 
+	## if field_content is 'null', then don't quote null. 
 	if [ "${field_content}" = "null" ]
 	then
 		update_command="setpath( ${path_to_field}; null )"
-	#   else quote the content.
+	## else quote the content.
 	else
 		update_command="setpath( ${path_to_field}; \"${field_content}\" )"
 	fi
@@ -1771,12 +1782,12 @@ gotoh_update() {
 #   $1 = absolue path to node to delete
 # Output: none
 # Behavior:
-#   Regardless of whether the object has children, deletes it from json.
-#   Determines the threshold for overwrite based on the size of the object to be deleted.
+## Regardless of whether the object has children, deletes it from json.
+## Determines the threshold for overwrite based on the size of the object to be deleted.
 # Invariants
-#   assumes the deletion is of a shortcut, not a setting
+## assumes the deletion is of a shortcut, not a setting
 # Dependencies
-#   gotoh_overwrite_json gotoh_verbose
+## gotoh_overwrite_json gotoh_verbose
 gotoh_delete() {
 	# set input variables
 	local absolute_path="$1"
@@ -1808,25 +1819,25 @@ gotoh_delete() {
 #   $1 = absolute path to shortcut being moved
 #   $2 = absolute path to parent to which the shortcut is being moved
 # Output
-#   if shortcut is the root, say that it can't be moved, return 1
-#   if parent is direct parent of shortcut, notify so, return 2
-#   if parent is shortcut or a child of shortcut, notify that shortcut cannot be placed under itself, return 3
-#   neat print of the shortcut & parent information if successful, return 0
+## if shortcut is the root, say that it can't be moved, return 1
+## if parent is direct parent of shortcut, notify so, return 2
+## if parent is shortcut or a child of shortcut, notify that shortcut cannot be placed under itself, return 3
+## neat print of the shortcut & parent information if successful, return 0
 # Behavior
-#   checks that parent and shortcut path are appropriate:
-#     check that shortcut isn't already a direct child of parent, in which case moving is a waste of time.
-#     also check that shortcut isn't equal to or a parent of parent, else we would lose data at the deletion stage.
-#   if so, stores each field of the shortcut, to be used for creation later
-#   also obtains shortcut's starting path and ending path for later display
-#   calls gotoh_overwrite_json to create identical shortcut under parent
-#   calls gotoh_delete to delete original shortcut by absolute path
-#   helpfully outputs information about shortcut's original parent and shortcut's new parent
+## checks that parent and shortcut path are appropriate:
+### check that shortcut isn't already a direct child of parent, in which case moving is a waste of time.
+### also check that shortcut isn't equal to or a parent of parent, else we would lose data at the deletion stage.
+## if so, stores each field of the shortcut, to be used for creation later
+## also obtains shortcut's starting path and ending path for later display
+## calls gotoh_overwrite_json to create identical shortcut under parent
+## calls gotoh_delete to delete original shortcut by absolute path
+## helpfully outputs information about shortcut's original parent and shortcut's new parent
 # Invariants
-#   assumes that both absolute paths exist
-#   assumes has access to gotov_json_filepath
+## assumes that both absolute paths exist
+## assumes has access to gotov_json_filepath
 # Dependences
-#   gotoh_overwrite_json
-#   gotoh_delete
+## gotoh_overwrite_json
+## gotoh_delete
 gotoh_move() { 
 	# set up the arg variables
 	local shortcut_absp="$1"
@@ -1926,16 +1937,16 @@ gotoh_move() {
 #   $1 = -sc / -st
 #   $2 = absolute path to node
 # Output
-#   neat print of node's information as well as its children's keywords
+## neat print of node's information as well as its children's keywords
 # Behavior
-#   grabs object at path
-#   prints information of the node using gotoh_read
-#   prints children keywords in a simple list
+## grabs object at path
+## prints information of the node using gotoh_read
+## prints children keywords in a simple list
 # Invariants
-#   assumes absolute path exists
-#   assumes object has the correct keys
+## assumes absolute path exists
+## assumes object has the correct keys
 # Dependencies
-#   gotoh_read
+## gotoh_read
 # Useful for browse.
 gotoh_print_family() { 
 	# set up input variables
@@ -1972,11 +1983,11 @@ gotoh_print_family() {
 	children_keywords_string="${children_keywords_string// /$children_keywords_spacing}"
 
 	# center-print the children keywords
-	#   first get the number of columns
+	## first get the number of columns
 	local columns="$( tput cols )"
-	#   center-print children count
+	## center-print children count
 	gotoh_center_print "${children_count_string}"
-	#   next center-print the keywords
+	## next center-print the keywords
 	gotoh_center_print "${children_keywords_string}"
 }
 
@@ -1987,32 +1998,32 @@ gotoh_print_family() {
 # == user interface function for creating a node crui ==
 # create is a facultatively interactive function. it can be non-interactive as well.
 # Input (interactive)
-#   auto-directory mode
-#     -dunder parent_keywords
-#       in this option, auto-directory mode is turned on: automatically sets 
-#       t = d and n = current working directory path (checks parent path & uses relative path if possible)
-#   command-line mode
-#     -under parent_keywords
-#   browse mode
-#     -browse absolute_path
-#       in this option, browse mode is turned on: automatically sets 
-#       the absolute path
+## auto-directory mode
+### -dunder parent_keywords
+#### in this option, auto-directory mode is turned on: automatically sets 
+#### t = d and n = current working directory path (checks parent path & uses relative path if possible)
+## command-line mode
+### -under parent_keywords
+## browse mode
+### -browse absolute_path
+#### in this option, browse mode is turned on: automatically sets 
+#### the absolute path
 # Input (non-interactive)
-#   auto-directory mode
-#     -dk keyword -d description -under parent_keywords
-#       in this option, auto-directory mode is turned on: automatically sets 
-#       t = d and n = current working directory path
-#   command-line mode
-#     -k keyword -d description -t type -n destination -under parent_keywords
+## auto-directory mode
+### -dk keyword -d description -under parent_keywords
+#### in this option, auto-directory mode is turned on: automatically sets 
+#### t = d and n = current working directory path
+## command-line mode
+### -k keyword -d description -t type -n destination -under parent_keywords
 # Output
-#   nothing
+## nothing
 # Behavior
-#   creates the specified shortcut under a parent shortcut specified by parent_keywords
+## creates the specified shortcut under a parent shortcut specified by parent_keywords
 # Invariants
-#   checks that all options are provided
-#   assumes that the new node is under shortcuts, not settings
+## checks that all options are provided
+## assumes that the new node is under shortcuts, not settings
 # Dependencies
-#   gotoh_create, rcjs, gotoh_output, gotoh_verbose
+## gotoh_create, rcjs, gotoh_output, gotoh_verbose
 gotoui_create() { 
 	# check that we have first argument
 	# parse arguments to determine whether we're in interactive mode
@@ -2034,7 +2045,7 @@ gotoui_create() {
 	  
 		# first process browse-interactive mode to see if rcjs can be skipped
 		local absolute_path_is_ready
-		#   if browse-interactive mode, then directly get the absolute path
+		## if browse-interactive mode, then directly get the absolute path
 		if [ "$1" = "-browse" ]
 		then
 			# arguments checkpoint: we need exactly 2 arguments
@@ -2055,14 +2066,14 @@ gotoui_create() {
 			fi
 			absolute_path_is_ready=true
 		
-		#   else, we're in command-line-interactive mode
+		## else, we're in command-line-interactive mode
 		else
 			# detect auto-directory mode
-			#   if auto-directory mode, then set mode
+			## if auto-directory mode, then set mode
 			if [ "$1" = "-dunder" ]
 			then
 				auto_directory_mode=true
-			#   if not auto-directory mode, then set mode
+			## if not auto-directory mode, then set mode
 			else
 				auto_directory_mode=false
 			fi
@@ -2078,7 +2089,7 @@ gotoui_create() {
 			parent_keywords=( "${@:2}" )
 
 			# obtain rcjs outputs
-			#   if parent shortcut isn't unique, quit. else continue to user input & creation.
+			## if parent shortcut isn't unique, quit. else continue to user input & creation.
 			matched_absolute_path="$( gotoh_recursive_json_search -sc ${parent_keywords[@]} )"
 			if [ -z "$matched_absolute_path" ] || [ "$matched_absolute_path" = "multiple" ]
 			then
@@ -2311,13 +2322,13 @@ gotoui_create() {
 		fi
 
 		# do a keyword validity check.
-		#   make sure keyword doesn't have space in it
+		## make sure keyword doesn't have space in it
 		if [[ "$keyword" =~ $space ]]
 		then
 			gotoh_output "This keyword has a space in it, so it's not valid."
 			return $gotocode_invalid_arg
 		fi
-		#   make sure keywords separated by pipes aren't duplicative
+		## make sure keywords separated by pipes aren't duplicative
 		IFS='|'
 		local possibly_multiple_keywords number_of_keywords last_keyword_index
 		read -a possibly_multiple_keywords <<< "$keyword"
@@ -2336,7 +2347,7 @@ gotoui_create() {
 			fi
 		done
 
-		#   make sure object_type is valid
+		## make sure object_type is valid
 		case "$object_type" in
 			t|d|f|l) : ;;
 			*) 
@@ -2353,7 +2364,7 @@ gotoui_create() {
 		fi
 		
 		# run rcjs to find parent shortcut.
-		#   if parent shortcut isn't unique, quit. else continue to create.
+		## if parent shortcut isn't unique, quit. else continue to create.
 		local matched_absolute_path
 		matched_absolute_path="$( gotoh_recursive_json_search -sc ${parent_keywords[@]} )"
 		if [ -z "$matched_absolute_path" ] || [ "$matched_absolute_path" = "multiple" ]
@@ -2376,20 +2387,20 @@ gotoui_create() {
 # == user interface function for reading a node reui ==
 # read is a non-interactive function
 # Input
-#   -sc / -st
-#   keywords
+## -sc / -st
+## keywords
 # Output
-#   if keywords don't match anything, let user know no match found.
-#   if keywords match multiple, let user know multiple matches found.
-#   if keywords match, print neatly formatted information of match
+## if keywords don't match anything, let user know no match found.
+## if keywords match multiple, let user know multiple matches found.
+## if keywords match, print neatly formatted information of match
 # Behavior
-#   uses rcjs to search for match
-#   output according to Output rules above & show_children setting
+## uses rcjs to search for match
+## output according to Output rules above & show_children setting
 # Invariants
-#   input must contain -sc / -st at the start
-#   input must have at least one keyword
+## input must contain -sc / -st at the start
+## input must have at least one keyword
 # Dependencies
-#   rcjs, gotoh_read, gotoh_output, gotoh_verbose
+## rcjs, gotoh_read, gotoh_output, gotoh_verbose
 gotoui_read() { 
 	# set up input variable
 	local subset_option="$1"
@@ -2457,17 +2468,17 @@ gotoui_read() {
 #   $4+      = keywords
 # Output: none
 # Behavior
-#   If input starts with subset option, it's interactive. 
-#     Search keywords and, if unique match, then interactively update content.
-#       For shortcuts, user can type destination. Update helper is not invoked here.
-#       For settings, user must select from a set of predefined options. Update helper is invoked here.
-#   If input starts with field specifier, it's non-interactive.
-#     In this mode, user is assumed to be updating a shortcut specified by the keywords. Update helper is not invoked here.
-#   After setting the appropriate fields, update helper is invoked here for both interactive & non-interactive cases.
+## If input starts with subset option, it's interactive. 
+### Search keywords and, if unique match, then interactively update content.
+#### For shortcuts, user can type destination. Update helper is not invoked here.
+#### For settings, user must select from a set of predefined options. Update helper is invoked here.
+## If input starts with field specifier, it's non-interactive.
+### In this mode, user is assumed to be updating a shortcut specified by the keywords. Update helper is not invoked here.
+## After setting the appropriate fields, update helper is invoked here for both interactive & non-interactive cases.
 # Invariants
-#   Non-interactive input
+## Non-interactive input
 # Dependencies
-#   gotoh_update, gotoh_recursive_json_search, gotoh_print_path
+## gotoh_update, gotoh_recursive_json_search, gotoh_print_path
 gotoui_update() {
 	# check if input has at least one argument.
 	if [ $# -lt 1 ]
@@ -2545,7 +2556,7 @@ gotoui_update() {
 			matched_absolute_path="$( gotoh_recursive_json_search "${subset_option}" "${keywords[@]}" )"
 
 			# process the rcjs results
-			#   if not unique match, then cannot read.
+			## if not unique match, then cannot read.
 			if [ -z "$matched_absolute_path" ] || [ "$matched_absolute_path" = "multiple" ]
 			then
 				gotoh_output "No match found."
@@ -2700,7 +2711,7 @@ gotoui_update() {
 						# first check that type isn't 't'.
 						local type_filter="getpath(${matched_absolute_path})|.type"
 						local object_type="$( jq -r "${type_filter}" "${gotov_json_filepath}" )"
-						#   if it is 't', you can't change destination.
+						## if it is 't', you can't change destination.
 						if [ "${object_type}" = "t" ]
 						then
 							gotoh_output "This shortcut is a topic, so its destination cannot be updated."
@@ -2714,7 +2725,7 @@ gotoui_update() {
 				esac
 
 				# now that the field_content has been prompted, we'll update the json
-				#   confirm the update
+				## confirm the update
 				local matched_keyword="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${gotov_json_filepath}" )"
 				gotoh_output "About to update shortcut '${matched_keyword}'" \
 					"with new ${field_specifier_word} '${field_content}'" "Confirm?"
@@ -2736,7 +2747,7 @@ gotoui_update() {
 				# since settings aren't hierarchical, that index is always at index 2 of the absolute path.
 				local setting_index="$( jq -n "${matched_absolute_path}|.[2]" )"
 				# based on the setting index, collect all the options in a single array
-				#   don't use the extract substring function, as it's less efficient than directly extracting here.
+				## don't use the extract substring function, as it's less efficient than directly extracting here.
 				local setting_options_string="${gotov_settings_options[setting_index]}"
 				local setting_options_array
 				IFS=";"
@@ -2814,7 +2825,7 @@ gotoui_update() {
 		fi
 
 	# non-interactive mode
-	#   check for at least 4 arguments for non-interactive mode
+	## check for at least 4 arguments for non-interactive mode
 	elif [ $# -lt 4 ]
 		then
 			gotoh_output "Provide at least four arguments after '-u' for non-interactive update." "Check 'goto --help' for proper invocation."
@@ -2909,7 +2920,7 @@ gotoui_update() {
 	if [ "$field_specifier" = "-n" ]
 	then
 		### check if the parent of the match is a dir.
-		###   if so, shorten the destination to a relative path using substitution.
+		#### if so, shorten the destination to a relative path using substitution.
 		#### this exact algorithm is replicated in gotoui_create, with the exception that, here, the parent needs to first be obtained, while the parent is the match in create.
 		local parent_absp="$( jq -c ".[:length-2]" <<< "${matched_absolute_path}" )"
 		local parent_type="$( jq -r "getpath(${parent_absp})|.type" "$gotov_json_filepath" )"
@@ -2972,12 +2983,12 @@ gotoui_update() {
 #   $2 = absolute path
 # Output: none
 # Behavior:
-#   Searches rcjs for a single match for the keywords
-#   If the single match is found, only deletes it if it doesn't have children.
+## Searches rcjs for a single match for the keywords
+## If the single match is found, only deletes it if it doesn't have children.
 # Invariants
-#   assumes the deletion is of a shortcut, not a setting
+## assumes the deletion is of a shortcut, not a setting
 # Dependencies
-#   gotoh_overwrite_json gotoh_output gotoh_recursive_json_search
+## gotoh_overwrite_json gotoh_output gotoh_recursive_json_search
 gotoui_delete() {
 	# check that you have at least one keyword
 	if [ $# -lt 1 ]
@@ -2987,7 +2998,7 @@ gotoui_delete() {
 	fi
 	# check for browse mode
 	local matched_absolute_path absolute_path_is_ready
-	#   if browse mode, absolute path is ready
+	## if browse mode, absolute path is ready
 	if [ "$1" = "-browse" ]
 	then
 		# arguments checkpoint: we need exactly 2 arguments
@@ -3008,7 +3019,7 @@ gotoui_delete() {
 		fi
 		absolute_path_is_ready=true
 
-	#   else, we're in command-line mode, use keywords to find absolute path
+	## else, we're in command-line mode, use keywords to find absolute path
 	else
 		# set input variables
 		local keywords=( "$@" )
@@ -3061,12 +3072,12 @@ gotoui_delete() {
 #   $@ = keywords
 # Output: none
 # Behavior:
-#   Searches rcjs for a single match for the keywords
-#   If the single match is found, regardless of how many children it has.
+## Searches rcjs for a single match for the keywords
+## If the single match is found, regardless of how many children it has.
 # Invariants
-#   assumes the deletion is of a shortcut, not a setting
+## assumes the deletion is of a shortcut, not a setting
 # Dependencies
-#   gotoh_overwrite_json gotoh_output gotoh_recursive_json_search
+## gotoh_overwrite_json gotoh_output gotoh_recursive_json_search
 gotoui_delete_recursive() {
 	# check that you have at least one keyword
 	if [ $# -lt 1 ]
@@ -3110,22 +3121,22 @@ gotoui_delete_recursive() {
 #   $n			= -under
 #   $n+1~end	= parent
 # Output
-#   echo success with a user-friendly message
-#   return 0 if success,
-#   1 for invalid input, 
-#   2 for shortcut not found,
-#   3 for parent not found,
-#   4 for operation unsuccessful
+## echo success with a user-friendly message
+## return 0 if success,
+## 1 for invalid input, 
+## 2 for shortcut not found,
+## 3 for parent not found,
+## 4 for operation unsuccessful
 # Behavior
-#   parses user input to obtain shortcut keywords and parent keywords lists.
-#   makes sure all shortcut, -under, and parent keys are provided.
-#   searches for shortcut, obtains its key path (should need a helpful for that, and call that helper from multipath cases as well) or outputs shortcut not found.
-#   searches for parent, obtains its key path or outputs parent not found.
-#   runs gotoh_move on the absolute paths, letting it output the appropriate information about the shortcut and its parents.
+## parses user input to obtain shortcut keywords and parent keywords lists.
+## makes sure all shortcut, -under, and parent keys are provided.
+## searches for shortcut, obtains its key path (should need a helpful for that, and call that helper from multipath cases as well) or outputs shortcut not found.
+## searches for parent, obtains its key path or outputs parent not found.
+## runs gotoh_move on the absolute paths, letting it output the appropriate information about the shortcut and its parents.
 # Invariants
-#   requires proper invocation according to the format <shortcut keys> -under <parent keys>
+## requires proper invocation according to the format <shortcut keys> -under <parent keys>
 # Dependencies
-#   gotoh_move
+## gotoh_move
 gotoui_move() { 
 	# check input is non-empty
 	if [ $# -eq 0 ]
@@ -3215,21 +3226,21 @@ gotoui_move() {
 # Input
 #   $1 = -sc / -st
 # Output
-#   A nice user interface for browsing shortcuts or settings
+## A nice user interface for browsing shortcuts or settings
 # Behavior
-#   Starting at the appropriate root, display the node's family, then have several options for editing & traversing:
-#     for shortcuts: 
-#       create (interactive)
-#       delete (non-interactive, non-recursive, moves to the parent)
-#     for both shortcuts and settings:
-#       update (interactive)
-#       go back to the parent
-#       type a child keyword to visit
+## Starting at the appropriate root, display the node's family, then have several options for editing & traversing:
+### for shortcuts: 
+#### create (interactive)
+#### delete (non-interactive, non-recursive, moves to the parent)
+### for both shortcuts and settings:
+#### update (interactive)
+#### go back to the parent
+#### type a child keyword to visit
 #       'q' to quit
 # Invariants
-#   goto.json exists
+## goto.json exists
 # Dependencies
-#   gotoui_create, gotoui_delete, gotoui_update, 
+## gotoui_create, gotoui_delete, gotoui_update, 
 gotoui_browse() {
 	# argument check
 	if [ $# -ne 1 ]
@@ -3273,7 +3284,7 @@ gotoui_browse() {
 
 		# display options based on subset
 		echo # aesthetic newline
-		#   display shortcut-compatible options
+		## display shortcut-compatible options
 		if [ "$subset_option" = "-sc" ]
 		then
 			# output options available to root shortcut
@@ -3312,7 +3323,7 @@ gotoui_browse() {
 						"  [-q] quit move"
 				fi
 			fi
-		#   display setting-compatible options
+		## display setting-compatible options
 		else
 			# output options available to root setting
 			if [ "$current_absolute_path" = "$starting_absolute_path" ]
@@ -3374,7 +3385,7 @@ gotoui_browse() {
 						gotoh_output "Shortcut deletion failed."
 						read -p "[Enter] to continue." tmptrash
 					# if shortcut deletion succeeded, then you must backtrack the filter to the parent
-					#   in the exact same way as in -p option
+					## in the exact same way as in -p option
 					else
 						current_absolute_path="$( jq '.[:(length-2)]' <<< "$current_absolute_path" )"
 					fi
@@ -3535,14 +3546,18 @@ gotoui_browse() {
 	done
 }
 
+##########################################################
+## main CRUD user interface autocomplete setup crudcomp ##
+##########################################################
+
 ################################################
 ## main CRUD user interface execution cruduix ##
 ################################################
 case "$1" in
 -b|--browse|-c|--create|-cd|--create-directory|-r|--read|-u|--update|-d|--delete|-dr|--delete-recursive|-m|--move)
 	# process CRUD options here TODO
-	#   We do NOT process return codes here, but leave them inside their originating functions 
-	#   for easier identification of problem functions, thereby helping with debugging
+	## We do NOT process return codes here, but leave them inside their originating functions 
+	## for easier identification of problem functions, thereby helping with debugging
 	case "$1" in
 		-c|--create) gotoui_create "${@:2}" ;;
 		-cd|--create-directory)
@@ -3600,44 +3615,44 @@ esac
 # == goto main user interface function gtuf == 
 # gotoui_goto
 # Input
-#   keywords
+## keywords
 # Output
-#   either message indicating shortcut found, or messages indicating not found.
+## either message indicating shortcut found, or messages indicating not found.
 # Behavior
-#   Recursively looks for a match to the given keyword sequence under shortcuts
-#   using gotoh_recursive_json_search (rcjs) with -sc option.
-#     If rcjs echoes nada, then there's no match for the first keyword. Depending on shortcut_partial, decide whether to continue searching in filesystem.
-#     Elif rcjs echoes 'multiple', then the multiple paths have already been displayed. The error code is irrelevant in that case as well.
-#     Else rcjs echoes anything else, that should be an absolute path. Then the return code matters.
-#       If return code is the same as the number of keywords, that means all keywords have been consumed, so we go.
-#       Elif return code is less than number of keywords, then depends on shortcut_partial setting
+## Recursively looks for a match to the given keyword sequence under shortcuts
+## using gotoh_recursive_json_search (rcjs) with -sc option.
+### If rcjs echoes nada, then there's no match for the first keyword. Depending on shortcut_partial, decide whether to continue searching in filesystem.
+### Elif rcjs echoes 'multiple', then the multiple paths have already been displayed. The error code is irrelevant in that case as well.
+### Else rcjs echoes anything else, that should be an absolute path. Then the return code matters.
+#### If return code is the same as the number of keywords, that means all keywords have been consumed, so we go.
+#### Elif return code is less than number of keywords, then depends on shortcut_partial setting
 #         If shortcut_partial is on, then go.
 #         Else shortcut_partial isn't on, then process the rest of the unmatched keywords using recursive filesystem search.
-#   Recursively looks for a match to the unmatched keyword sequence under filesystem (rcfs).
-#     Invariant: If provided destination is not a dir, quit.
-#     Search for keyword (with maxdepth determined by filesystem_multipath) until all keywords are exhausted or we quit early...
-#       If it matches a single destination...
+## Recursively looks for a match to the unmatched keyword sequence under filesystem (rcfs).
+### Invariant: If provided destination is not a dir, quit.
+### Search for keyword (with maxdepth determined by filesystem_multipath) until all keywords are exhausted or we quit early...
+#### If it matches a single destination...
 #         If that destination is a file...
 #           If filesystem_partial is on, then open the file.
 #           If filesystem_partial is off, then quit.
 #         If that destination is a dir, continue searching.
-#       If it matches multiple destinations, just display them and quit.
-#       If it matches no destination at all...
+#### If it matches multiple destinations, just display them and quit.
+#### If it matches no destination at all...
 #         If it's the first keyword, then quit.
 #         If it's not the first keyword, then...
 #           If filesystem_partial is on, then open the dir.
 #           If filesystem_partial is off, then quit.
-#     After all keywords are exhausted, open the final matched destination.
+### After all keywords are exhausted, open the final matched destination.
 # Invariants
-#   input is not a CRUD option
-#   input contains at least one keyword
-#   has access to a properly initialized gotov_filesystem_multipath_setting
-#   has access to a properly initialized gotov_shortcut_partial_setting
-#   has access to a properly initialized gotov_filesystem_partial_setting
+## input is not a CRUD option
+## input contains at least one keyword
+## has access to a properly initialized gotov_filesystem_multipath_setting
+## has access to a properly initialized gotov_shortcut_partial_setting
+## has access to a properly initialized gotov_filesystem_partial_setting
 # Dependencies
-#   gotoh_output
-#   gotoh_recursive_json_search
-#   gotoh_open_path, gotoh_go
+## gotoh_output
+## gotoh_recursive_json_search
+## gotoh_open_path, gotoh_go
 gotoui_goto() {
 	# create input variables
 	local keywords=( "$@" )
@@ -3681,14 +3696,14 @@ gotoui_goto() {
 		fi
 	
 		# now, the return code matters. process it appropriately using an if-else.
-		#   if we've matched all keywords, then go to the path.
-		#     this is the case that guarantees that rcfs will only occur if there is any unmatched keyword left.
+		## if we've matched all keywords, then go to the path.
+		### this is the case that guarantees that rcfs will only occur if there is any unmatched keyword left.
 		if [ "$unmatched_keyword_index" -ge "$number_of_keywords" ]
 		then
 			gotoh_open_path "${matched_absolute_path}"
 			return $gotocode_success
 		
-		#   elif we have a partial match, follow shortcut_partial setting.
+		## elif we have a partial match, follow shortcut_partial setting.
 		elif [ "$unmatched_keyword_index" -lt "$number_of_keywords" ]
 		then
 			# if-else on the shortcut_partial setting.
@@ -3714,23 +3729,23 @@ gotoui_goto() {
 
 	# == recursive filesystem search rcfss ==
 	# At this point, there are still unmatched keywords left.
-	#   we either have all keywords still unmatched (from the first fall-through above), 
-	#   or a partial list of keywords (from the second fall-through above).
+	## we either have all keywords still unmatched (from the first fall-through above), 
+	## or a partial list of keywords (from the second fall-through above).
 	
 	# set up variables for the recursive filesystem search
 	local dir_in_which_to_look=''
 	local number_of_keywords_examined_by_find=0
 
 	# file hierarchy search invariant checkpoint: 
-	#   the recursive search can only operate on a directory
+	## the recursive search can only operate on a directory
 	
 	# if-else over the number of keywords not yet matched, to decide in which directory to search.
-	#   if no keyword matched in json, then set '.' as the dir in which to look next.
+	## if no keyword matched in json, then set '.' as the dir in which to look next.
 	if [ $unmatched_keyword_index -eq 0 ]
 	then
 		dir_in_which_to_look="."
 	
-	#   else (if at least one keyword matched in json), check the type at the absolute path.
+	## else (if at least one keyword matched in json), check the type at the absolute path.
 	else
 		local destination_filetype="$( jq -r "getpath(${matched_absolute_path})|.type" "${gotov_json_filepath}" )"
 		
@@ -3935,7 +3950,7 @@ gotoui_goto() {
 	done
 
 	# After exhausting the keywords and triggering neither no-match nor multi-match, 
-	#   we can know that the dir we have now is openable.
+	## we can know that the dir we have now is openable.
 	# Apologies for the misnomer in the case in which dir_in_which_to_look can be a file.
 	gotoh_output "Successfully matched all given keywords. Going there."
 	if [ -f "${dir_in_which_to_look}" ]

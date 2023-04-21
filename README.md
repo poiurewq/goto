@@ -45,7 +45,7 @@ All settings and all shortcuts are stored inside the first and second objects, r
 At first invocation, **goto** sets up a few settings as well as example shortcuts, including a shortcut (`goto`) to the `goto.sh` script itself and a shortcut (`keys`) to the `goto.json` file. So, after first invocation, you can test whether the setup worked by restarting the shell, then typing `goto goto` to open the script, and `goto keys` to open the JSON file.
 
 ## CRUD operations
-Currently, my script supports the four main CRUD operations: create, read, update, and delete. All of these operations have a non-interactive mode, which is reached when you pass in the appropriate command-line arguments. Create and update also have an interactive mode, which is reached when you don't pass in certain arguments. The details for usage are specified in the help messages, which can be read by calling `goto`, or `goto --help` for more details.
+Currently, my script supports the four main CRUD operations--create, read, update, delete--as well as move. All of these operations have a non-interactive mode, which is reached when you pass in the appropriate command-line arguments. Create and update also have an interactive mode, which is reached when you don't pass in certain arguments. The details for usage are specified in the help messages, which can be read by calling `goto`, or `goto --help` for more details.
 
 ### Browse
 `goto -b` is perhaps the most useful CRUD command. It allows you to interactively traverse the full shortcuts tree (`goto -b`), adding new shortcuts, updating shortcuts, and deleting shortcuts wherever you please. This is also the best way to update settings, as you can see what their keywords are.
