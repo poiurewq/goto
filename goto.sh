@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.4-a.0+20230421112358"
+gotov_semver="v0.8.5-a.0+20230421120502"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -449,7 +449,7 @@ complete -F _goto_complete_goto goto
 gotoh_attach_completion() {
 	local function_to_attach="$1"
 	local quiet_flag="$2"
-	type "$function_to_attach" 2&>/dev/null
+	which "$function_to_attach"
 	if [ $? -ne 0 ]; then
 		if [ -z "$quiet_flag" ]; then
 			gotoh_output "The function '${function_to_attach}' doesn't exist."
@@ -674,7 +674,7 @@ unset tmptrash
 
 # == check dependencies chkdep ==
 # -- check that we have jq chkjq --
-tmptrash="$(type jq 2&>/dev/null)"
+tmptrash="$(which jq)"
 if [ $? -ne 0 ]
 then
 	gotoh_output "You do not yet have jq installed. Please install jq." \
@@ -684,7 +684,7 @@ fi
 unset tmptrash
 
 # -- check that we have rlist chkrl --
-# tmptrash="$(type rlist)"
+# tmptrash="$(which rlist)"
 # if [ $? -ne 0 ]
 # then
 	# gotoh_output "You do not yet have rlist installed. Please install rlist."
