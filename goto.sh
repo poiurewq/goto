@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.6-a.0+20230421121837"
+gotov_semver="v0.8.6-a.2+20230421123035"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -536,8 +536,8 @@ then
 	gotoh_output "== Bootstrapping goto ==" "Please follow the instructions on the prompt."
 	# Confirmation for destination directory
 	gotoh_output
-	gotoh_output "The destination directory for this script and its settings is set to '$gotov_dest_dirpath'." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_dest_dirpath'" "  Otherwise, press [Enter] to leave it as-is."
-	read -p "n or [Enter]: " gotolv_confirm_dest_dirpath
+	gotoh_output "The destination directory for this script and its settings is set to '$gotov_dest_dirpath'." "  If you'd like to change it, type 'n', " "  then go into the script and change the variable named '\$gotov_dest_dirpath'" "  Otherwise, press [Enter] to leave it as-is."
+	read -p "    n or [Enter]: " gotolv_confirm_dest_dirpath
 	if [ -z "$gotolv_confirm_dest_dirpath" ]; then
 		:
 	elif [ "$gotolv_confirm_dest_dirpath" = 'n' ]; then
@@ -549,8 +549,8 @@ then
 
 	# Confirmation for alias settings file
 	gotoh_output
-	gotoh_output "The file where you define aliases is set to '$gotov_alias_filepath." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
-	read -p "n or [Enter]: " gotov_confirm_alias_filepath
+	gotoh_output "The file where you define aliases is set to '$gotov_alias_filepath." "  If you'd like to change it, type 'n'," "  then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
+	read -p "    n or [Enter]: " gotov_confirm_alias_filepath
 	if [ -z "$gotolv_confirm_alias_filepath" ]; then
 		:
 	elif [ "$gotolv_confirm_alias_filepath" = 'n' ]; then
