@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.5-a.0+20230421120502"
+gotov_semver="v0.8.5-a.0+20230421120715"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -509,7 +509,7 @@ then
 	return $gotocode_var_empty
 fi
 
-gotov_dest_dirpath=~/".bash_ccm" # set this to what you want
+gotov_dest_dirpath=~/".goto" # set this to what you want
 gotov_dest_filepath="$gotov_dest_dirpath/$gotov_filename"
 
 # -- alsvdef --
