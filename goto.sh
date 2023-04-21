@@ -143,7 +143,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.0-a.0+20230421035618"
+gotov_semver="v0.8.1-a.0+20230421041237"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -501,25 +501,28 @@ then
 	# Set first-time flag to true, so normal goto proper won't be carried out.
 	gotov_firsttime_status=true
 	# Ask user for confirmations
+	goto_output "== Bootstrapping goto ==" "Please follow the instructions on the prompt."
 	# Confirmation for destination directory
-	gotoh_output "The destination directory for this script and its settings is set to '$gotov_dest_dirpath'." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_dest_dirpath'" "  Otherwise, type 'y' to leave it as-is."
-	read -p "y/n: " gotolv_confirm_dest_dirpath
-	if [ "$gotolv_confirm_dest_dirpath" = "y" ]
-	then
+	gotoh_output "The destination directory for this script and its settings is set to '$gotov_dest_dirpath'." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_dest_dirpath'" "  Otherwise, press [Enter] to leave it as-is."
+	read -p "n or [Enter]: " gotolv_confirm_dest_dirpath
+	if [ -z "$gotolv_confirm_dest_dirpath" ]; then
 		:
+	elif [ "$gotolv_confirm_dest_dirpath" = 'n' ]
+		gotoh_output "Bootstrap cancelled. Please edit the field 'gotov_dest_dirpath', then source this file again."
 	else
-		gotoh_output "goto.sh execution ended. Please edit the field and try again."
+		gotoh_output "Unknown option. Bootstrap cancelled."
 		return
 	fi
 
 	# Confirmation for alias settings file
-	gotoh_output "The file where you define aliases is set to '$gotov_alias_filepath." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, type 'y' to leave it as-is."
-	read -p "y/n: " gotov_confirm_alias_filepath
-	if [ "$gotov_confirm_alias_filepath" = "y" ]
-	then
+	gotoh_output "The file where you define aliases is set to '$gotov_alias_filepath." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
+	read -p "n or [Enter]: " gotov_confirm_alias_filepath
+	if [ -z "$gotolv_confirm_alias_filepath" ]; then
 		:
+	elif [ "$gotolv_confirm_alias_filepath" = 'n' ]
+		gotoh_output "Bootstrap cancelled. Please edit the field 'gotov_alias_filepath', then source this file again."
 	else
-		gotoh_output "goto.sh execution ended. Please edit the field and try again."
+		gotoh_output "Unknown option. Bootstrap cancelled."
 		return
 	fi
 
