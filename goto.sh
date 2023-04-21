@@ -20,9 +20,11 @@
 # -- general helpers --
 # shdf
 #   vrdefs
+#     gtvsn
 #     cddefs
-#   shfdefs
 #     otenv
+#   shfdefs
+#     iprp
 #     otpt
 #     vbotpt
 #     flgr
@@ -105,7 +107,7 @@
 ## v0.4.0: add goto.json browse. `goto -b`
 ## v0.5.0: add a neat title screen. `goto --title`
 ## for more notes on iteration, see git log
-# file note: this is a sourced script. no need for chmod +x. no need for loading definition upon startup. needs insertion of an alias in bash profile.
+# file note: this is a sourced script. no need for chmod +x. no need for loading definition upon startup. needs insertion of an alias in bash rc.
 # dependencies: jq
 
 # -- json format jsnfmt --
@@ -143,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.2-a.1+20230421042342"
+gotov_semver="v0.8.4-a.0+20230421112358"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -177,11 +179,25 @@ gotocode_quit_from_browse=35
 gotocode_multiple_matches_among_siblings=36
 gotocode_reset_cancelled=37
 
-# == shared helper functions definitions shfdefs ==
-# -- calling function environment variable otenv --
+# -- goto-specific environment variables otenv --
 export GOTO_CALLING_FUNCTION=''
 export GOTO_VERBOSE_SETTING='on'
 export GOTO_FLAG_COUNTER=0
+export GOTO_JSON_FILEPATH='' # the json filepath is an env var so that autocomplete can access it even after local is deleted
+
+# == shared helper functions definitions shfdefs ==
+
+# -- in-place replacement helper iprp --
+# Input
+## sed command
+## destination file
+gotoh_inplace_find_and_replace() {
+	if [ "$OSTYPE" = "darwin"* ]; then
+		sed -i '' "$1" "$2"
+	else
+		sed -i "$1" "$2"
+	fi
+}
 
 # Output vs Verbose output:
 ## By convention, all bootstrap outputs should be unconditionally output.
@@ -401,7 +417,7 @@ GOTO_DETAILED_USAGE
 # note that this function is not a 'gotoh_' but a _goto, because it needs to live on in the background of the user's shell for complete to attach to the appropriate aliases
 _goto_complete_goto() {
 	# early returns
-	if [ -z "${COMP_WORDS[COMP_CWORD]}" ]; then
+	if [ -z "${COMP_WORDS[COMP_CWORD]}" ] || [ -z "$GOTO_JSON_FILEPATH" ]; then
 		return
 	fi
 
@@ -425,7 +441,7 @@ _goto_complete_goto() {
 		keyword_filter='.[1]'
 	fi
 	keyword_filter+="|recurse(.list[]?)|select(.keyword|test(\"^(.*\\\\|)?${sanitized_word}.*(\\\\|.*)?$\"))|.keyword"
-	COMPREPLY=( $(jq -r "$keyword_filter" "$gotov_json_filepath" | awk -F'[ |]+' '{for(i=1;i<=NF;i++)print $i}' | grep "^${raw_word}.*") )
+	COMPREPLY=( $(jq -r "$keyword_filter" "$GOTO_JSON_FILEPATH" | awk -F'[ |]+' '{for(i=1;i<=NF;i++)print $i}' | grep "^${raw_word}.*") )
 }
 complete -F _goto_complete_goto goto
 
@@ -470,7 +486,20 @@ gotoh_extract_substring() {
 ## definitions for first-time bootstrap ftbtdf ##
 #################################################
 
-# == session bootstrap variable definitions ssbtvdef ==
+# == bootstrap helpers ==
+gotoh_rc_finder() {
+	local current_shell="$(basename -- "$(echo $0)")"
+	case "$current_shell" in
+	bash) echo '.bashrc' ;;
+	ash) echo '.profile' ;;
+	csh) echo '.cshrc' ;;
+	zsh) echo '.zshrc' ;;
+	ksh) echo '.kshrc' ;;
+	*) echo '.profile' ;;
+	esac
+}
+
+# == bootstrap variable definitions ssbtvdef ==
 # -- plpvdef --
 # autoplop variable definitions
 gotov_current_filepath="${BASH_SOURCE[0]}"
@@ -480,12 +509,14 @@ then
 	return $gotocode_var_empty
 fi
 
-gotov_dest_dirpath=~/".goto"
+gotov_dest_dirpath=~/".bash_ccm" # set this to what you want
 gotov_dest_filepath="$gotov_dest_dirpath/$gotov_filename"
 
 # -- alsvdef --
 # alias setting variable definitions
-gotov_alias_filepath=~/".bash_profile"
+# leave this alone if you want to use the default
+gotov_alias_filepath=~/"$(gotoh_rc_finder)" # comment this out to set your own
+# gotov_alias_filepath=~/".bash_ccm/sccm.sh" # uncomment this to set your own alias filepath
 gotov_alias_description="# define an alias for the goto.sh custom script"
 gotov_alias_definition="alias goto='source ${gotov_dest_filepath}'"
 
@@ -531,7 +562,7 @@ then
 	gotolv_firsttime_false_string='# FIRST'
 	gotolv_firsttime_false_string+='TIME'
 	gotolv_firsttime_false_string+='=FALSE'
-	sed -i '' "${gotov_firsttime_line}s/.*/${gotolv_firsttime_false_string}/" "${gotov_current_filepath}"
+	gotoh_inplace_find_and_replace "${gotov_firsttime_line}s/.*/${gotolv_firsttime_false_string}/" "${gotov_current_filepath}"
 fi
 unset -v $( compgen -v | grep "gotolv" )
 
@@ -543,6 +574,7 @@ unset -v $( compgen -v | grep "gotolv" )
 # Input: none
 # Output: none
 # Behavior: removes goto.json and sets first time to true again.
+# Invariant: assumes GOTO_JSON_FILEPATH has already been set
 gotoh_factory_setting() {
 	# prompt user for confirmation
 	local confirm_reset
@@ -552,7 +584,7 @@ gotoh_factory_setting() {
 	if [ "$confirm_reset" = "y" ]
 	then
 		# get rid of goto.json
-		rm "${gotov_json_filepath}"
+		rm "${GOTO_JSON_FILEPATH}"
 
 		# change goto.sh's first time setting back to true
 		# identify first time line
@@ -567,7 +599,7 @@ gotoh_factory_setting() {
 		local first_time_true_string='# FIRST'
 		first_time_true_string+='TIME'
 		first_time_true_string+='=TRUE'
-		sed -i '' "${firsttime_line}s/.*/${first_time_true_string}/" "${gotov_current_filepath}"
+		gotoh_inplace_find_and_replace "${firsttime_line}s/.*/${first_time_true_string}/" "${gotov_current_filepath}"
 		gotoh_output "This program has been reset to factory setting."
 		return $gotocode_success
 
@@ -592,7 +624,7 @@ gotoh_autoplop() {
 	# copy itself over.
 	cat "$starting_filepath" > "$gotov_dest_filepath"
 	# notify user
-	gotoh_output "$starting_filepath" "  copied to" "$gotov_dest_filepath" "You can now safely delete this file from the current directory."
+	gotoh_output "$starting_filepath" "  copied to" "  $gotov_dest_filepath" "You can now safely delete this file from the current directory."
 }
 
 # -- plpalg --
@@ -621,13 +653,13 @@ else
 fi
 
 # == append alias definition to the alias definition file alsalg ==
-# see if bash profile exists. if not, create one.
+# see if bash rc exists. if not, create one.
 if ! [ -f "$gotov_alias_filepath" ]
 then
 	touch "$gotov_alias_filepath"
 fi
 
-# search bash profile for the alias definition.
+# search bash rc for the alias definition.
 ## if found, then skip. if not found, then add.
 tmptrash="$(grep "$gotov_alias_definition" "$gotov_alias_filepath")"
 if [ $? -ne 0 ]
@@ -636,17 +668,17 @@ then
 	echo "$gotov_alias_description" >> "$gotov_alias_filepath"
 	echo "$gotov_alias_definition" >> "$gotov_alias_filepath"
 	# notify user
-	gotoh_output "The alias 'goto' has been added to $gotov_alias_filepath" "Restart the shell for this alias to take effect."
+	gotoh_output "The alias 'goto' has been added to $gotov_alias_filepath" "  Restart the shell for this alias to take effect."
 fi 
 unset tmptrash
 
 # == check dependencies chkdep ==
 # -- check that we have jq chkjq --
-tmptrash="$(type jq)"
+tmptrash="$(type jq 2&>/dev/null)"
 if [ $? -ne 0 ]
 then
 	gotoh_output "You do not yet have jq installed. Please install jq." \
-		"If you are on a Mac, Homebrew is a great way to install it."
+		"  If you are on a Mac, Homebrew is a great way to install it."
 	return $gotocode_missing_dependency
 fi
 unset tmptrash
@@ -784,14 +816,14 @@ gotov_settings_contents[gotov_fs_fuzzy]="$( gotoh_extract_substring "${gotov_set
 
 # == set up goto.json, also in destination directory stjs ==
 gotov_json_filename="goto.json"
-gotov_json_filepath="$gotov_dest_dirpath/$gotov_json_filename"
+GOTO_JSON_FILEPATH="$gotov_dest_dirpath/$gotov_json_filename"
 
 unset -v gotolv_shortcut_multipath_initial_content
 unset -v gotolv_filesystem_multipath_initial_content
 unset -v gotolv_setting_index
 
 # if the json file exists, don't do anything. else, create one.
-if ! [ -f "$gotov_json_filepath" ]
+if ! [ -f "$GOTO_JSON_FILEPATH" ]
 then
 	# here, do some shenanigans to initialize the json file
 	## here we build the jq input string for the settings object
@@ -832,16 +864,16 @@ EOF
 	### the $vars are jq vars, not bash vars (see jq command --arg to understand).
 	gotov_json_init="$( jq -n --tab \
 		--arg gtv_dest_filepath $gotov_dest_filepath \
-		--arg gtv_json_filepath $gotov_json_filepath \
+		--arg gtv_json_filepath $GOTO_JSON_FILEPATH \
 		"$gotolv_jq_init_input" )"
-	echo "$gotov_json_init" >> "$gotov_json_filepath"
+	echo "$gotov_json_init" >> "$GOTO_JSON_FILEPATH"
 fi
 
 # == set settings gtsts ==
 # initialize individual settings
 # obtain the settings object
 gotov_settings_filter='.[0].list'
-gotov_settings_array="$( jq -c "$gotov_settings_filter" "$gotov_json_filepath" )"
+gotov_settings_array="$( jq -c "$gotov_settings_filter" "$GOTO_JSON_FILEPATH" )"
 
 # obtain individual settings
 gotov_shortcut_multipath_setting="$( jq -nr "${gotov_settings_array}|.[]|select(.keyword==\"${gotov_settings_keywords[gotov_shortcut_multipath]}\")|.content" )"
@@ -912,7 +944,7 @@ esac
 # == chkjsn ==
 # -- chkfj --
 # check that goto.json is found.
-if ! [ -f "$gotov_json_filepath" ]
+if ! [ -f "$GOTO_JSON_FILEPATH" ]
 then
 	gotoh_output "goto.json is not found." "Please follow these steps to fix:" "  Open goto.sh." "  On line ${gotov_firsttime_line}, change the value of 'FIRSTTIME' to 'TRUE'" "  Source goto.sh again."
 	return $gotocode_file_not_found
@@ -920,7 +952,7 @@ fi
 
 # -- chkvj --
 # check that goto.json is valid json
-tmptrash=$( jq '.' ${gotov_json_filepath} >/dev/null 2>&1 )
+tmptrash=$( jq '.' ${GOTO_JSON_FILEPATH} >/dev/null 2>&1 )
 if [ $? -ne 0 ]
 then
 	gotoh_output "goto.json is invalid." "Please find goto.json in '${gotov_dest_dirpath}' and fix its syntax."
@@ -1025,7 +1057,7 @@ gotoh_print_path() {
 		## build filter for each step's keyword
 		each_step_keyword_filter="getpath(${absolute_path}|.[:${each_step}])|.keyword"
 		## get the keyword & quit if encounter error
-		each_step_keyword="$( jq -r "$each_step_keyword_filter" "${gotov_json_filepath}" )"
+		each_step_keyword="$( jq -r "$each_step_keyword_filter" "${GOTO_JSON_FILEPATH}" )"
 		if [ $? -ne 0 ]
 		then
 			gotoh_verbose "Failed to get the keyword using the filter '${each_step_keyword_filter}'"
@@ -1062,7 +1094,7 @@ gotoh_print_path() {
 #### the index of the last unmatched keyword in the keywords array.
 ### If multiple matches, return the number of matches.
 # Invariants
-## has access to a properly initialized gotov_json_filepath
+## has access to a properly initialized GOTO_JSON_FILEPATH
 ## has access to a properly initialized gotov_shortcut_multipath_setting
 ## the -st/-sc input is always in the first position.
 # Dependencies
@@ -1121,7 +1153,7 @@ gotoh_recursive_json_search() {
 
 		# count number of matches
 		## count matches
-		local current_number_of_matches="$( jq "[${current_objects_filter}]|length" "${gotov_json_filepath}" )"
+		local current_number_of_matches="$( jq "[${current_objects_filter}]|length" "${GOTO_JSON_FILEPATH}" )"
 		gotoh_verbose "current number of matches: $current_number_of_matches" "current unmatched keyword index: $current_unmatched_keyword_index"
 
 		# get the current unmatched keyword sequence for some verbose outputs later
@@ -1159,7 +1191,7 @@ gotoh_recursive_json_search() {
 			## get absolute path
 			gotoh_verbose "Single match for current keyword sequence '${current_matched_keyword_sequence// / -> }'"
 			# >&2 echo path(${current_objects_filter})|.[0]" # diagnostic
-			last_match_absolute_path="$( jq "path(${current_objects_filter})" "${gotov_json_filepath}" )"
+			last_match_absolute_path="$( jq "path(${current_objects_filter})" "${GOTO_JSON_FILEPATH}" )"
 
 		# - multiple matches jsmm -
 		# elif multiple matches, depending on shortcut multipath setting, directly return absolute path or print all paths and quit.
@@ -1199,7 +1231,7 @@ gotoh_recursive_json_search() {
 				## build a jq filter that determines the number of paths of length < 2n (depth = n)
 				local under_threshold_path_count_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|length"
 				## count the number of paths (matches) that are below the depth threshold
-				local under_threshold_path_count="$( jq "${under_threshold_path_count_filter}" "${gotov_json_filepath}" )"
+				local under_threshold_path_count="$( jq "${under_threshold_path_count_filter}" "${GOTO_JSON_FILEPATH}" )"
 
 				# if-else condition over the number of paths under the threshold (candidate paths to return)
 				# if no match, display all paths
@@ -1212,7 +1244,7 @@ gotoh_recursive_json_search() {
 				elif [ "$under_threshold_path_count" -eq 1 ]
 				then
 					local under_threshold_single_match_path_filter="[path(${current_objects_filter})]|map(select(length<${path_length_threshold}))|.[0]"
-					local under_threshold_single_match_path="$( jq "${under_threshold_single_match_path_filter}" "${gotov_json_filepath}" )"
+					local under_threshold_single_match_path="$( jq "${under_threshold_single_match_path_filter}" "${GOTO_JSON_FILEPATH}" )"
 					last_match_absolute_path="${under_threshold_single_match_path}"
 
 				# elif more than one match, display all paths
@@ -1256,7 +1288,7 @@ gotoh_recursive_json_search() {
 					each_path_filter="[path(${current_objects_filter})]|.[${each_match_index}]"
 					local each_absolute_path each_path_display_string
 					## get each absolute path
-					each_absolute_path="$( jq "${each_path_filter}" "${gotov_json_filepath}" )"
+					each_absolute_path="$( jq "${each_path_filter}" "${GOTO_JSON_FILEPATH}" )"
 					each_path_display_string="$( gotoh_print_path "${each_absolute_path}" )"
 					# output the path
 					gotoh_output "Match ${each_match}:" "  ${each_path_display_string}"
@@ -1335,7 +1367,7 @@ gotoh_get_parent_path() {
 ## Given the shortcut, returns its full filesystem absolute path
 # Invariants
 ## assumes that the absolute path is a valid shortcut
-## assumes ability to access gotov_json_filepath
+## assumes ability to access GOTO_JSON_FILEPATH
 ## assumes that the shortcut is of type 'd' or 'f', so that it has a filesystem path to begin with.
 # Dependencies
 ## gotoh_get_parent_path
@@ -1357,7 +1389,7 @@ gotoh_build_absolute_filepath() {
 
 	# initialize current variable trackers
 	current_jsonpath="$starting_jsonpath"
-	final_filepath="$( jq -r "getpath(${starting_jsonpath})|.destination" "$gotov_json_filepath" )"
+	final_filepath="$( jq -r "getpath(${starting_jsonpath})|.destination" "$GOTO_JSON_FILEPATH" )"
 
 	# first check if the filepath is already absolute. if so, directly return it. else, continue into the while loop.
 	if [[ "$final_filepath" =~ $re_absf ]]
@@ -1380,7 +1412,7 @@ gotoh_build_absolute_filepath() {
 		# >&2 echo "parent json path: '$parent_jsonpath'" # diagnostic
 		
 		# get the type & check it
-		parent_type="$( jq -r "getpath(${parent_jsonpath})|.type" "$gotov_json_filepath" )"
+		parent_type="$( jq -r "getpath(${parent_jsonpath})|.type" "$GOTO_JSON_FILEPATH" )"
 		# >&2 echo "parent type: '$parent_type'" # diagnostic
 
 		## if the parent type is not a 'd' directory, then something's wrong, since this function should
@@ -1393,7 +1425,7 @@ gotoh_build_absolute_filepath() {
 		fi
 
 		# get the filepath and prepend it to the final filepath
-		parent_filepath="$( jq -r "getpath(${parent_jsonpath})|.destination" "$gotov_json_filepath" )"
+		parent_filepath="$( jq -r "getpath(${parent_jsonpath})|.destination" "$GOTO_JSON_FILEPATH" )"
 		tmp_suffix="$final_filepath"
 		final_filepath="$parent_filepath"
 		final_filepath+="/${tmp_suffix}"
@@ -1511,7 +1543,7 @@ gotoh_go() {
 ### tracing to its parent(s), adding path prefixes along the way.
 # Invariants
 ## assumes that the absolute path is a valid shortcut
-## assumes ability to access gotov_json_filepath
+## assumes ability to access GOTO_JSON_FILEPATH
 # Dependencies
 ## gotoh_go
 ## gotoh_build_absolute_filepath
@@ -1520,7 +1552,7 @@ gotoh_open_path() {
 	local absolute_path="$1"
 
 	# get the object
-	local object_to_open="$( jq -c "getpath(${absolute_path})" "${gotov_json_filepath}" )"
+	local object_to_open="$( jq -c "getpath(${absolute_path})" "${GOTO_JSON_FILEPATH}" )"
 
 	# obtain the last match's relevant fields
 	local description="$( jq -nr "${object_to_open}|.description" )"
@@ -1583,10 +1615,10 @@ gotoh_overwrite_json() {
 	
 	# make the updates
 	local tmp_json=$(mktemp)
-	jq "$update_instruction" "${gotov_json_filepath}" > "$tmp_json" || return 1
+	jq "$update_instruction" "${GOTO_JSON_FILEPATH}" > "$tmp_json" || return 1
 	# count the lines
 	local original_wcl original_line_count new_wcl new_line_count difference
-	original_wcl="$( wc -l "${gotov_json_filepath}" | tr -d ' ' )"
+	original_wcl="$( wc -l "${GOTO_JSON_FILEPATH}" | tr -d ' ' )"
 	original_line_count="${original_wcl%%/*}"
 
 	new_wcl="$( wc -l "${tmp_json}" | tr -d ' ' )"
@@ -1608,7 +1640,7 @@ gotoh_overwrite_json() {
 
 	# if difference check passed, update the actual file using mv,
 	## which is (possibly?) better than cat because it's atomic.
-	mv "$tmp_json" "$gotov_json_filepath"
+	mv "$tmp_json" "$GOTO_JSON_FILEPATH"
 }
 
 # == helper to create node hlpc ==
@@ -1710,7 +1742,7 @@ gotoh_read() {
 
 	# grab object at path
 	local object_to_read
-	object_to_read="$( jq -c "getpath(${absolute_path})" "${gotov_json_filepath}" )"
+	object_to_read="$( jq -c "getpath(${absolute_path})" "${GOTO_JSON_FILEPATH}" )"
 
 	# = print object nicely =
 	# get keyword, description, type
@@ -1863,7 +1895,7 @@ gotoh_delete() {
 	# construct a deletion filter
 	local deletion_filter="getpath(${absolute_path})|=empty"
 	# count the expected number of lines to be deleted
-	local expected_deleted_lines="$( jq "getpath(${absolute_path})" "${gotov_json_filepath}" | wc -l | tr -d ' ' )"
+	local expected_deleted_lines="$( jq "getpath(${absolute_path})" "${GOTO_JSON_FILEPATH}" | wc -l | tr -d ' ' )"
 	(( expected_deleted_lines ++ ))
 	# call overwrite to delete & process its return code
 	local overwrite_code
@@ -1903,7 +1935,7 @@ gotoh_delete() {
 ## helpfully outputs information about shortcut's original parent and shortcut's new parent
 # Invariants
 ## assumes that both absolute paths exist
-## assumes has access to gotov_json_filepath
+## assumes has access to GOTO_JSON_FILEPATH
 # Dependences
 ## gotoh_overwrite_json
 ## gotoh_delete
@@ -1953,12 +1985,12 @@ gotoh_move() {
 	## obtain string representation of the starting path to shortcut
 	local sc_starting_path_string="$( gotoh_print_path "${shortcut_absp}" )"
 	## obtain the shortcut keywords
-	local sc_keywords="$( jq -r "getpath(${shortcut_absp})|.keyword" "$gotov_json_filepath" )"
+	local sc_keywords="$( jq -r "getpath(${shortcut_absp})|.keyword" "$GOTO_JSON_FILEPATH" )"
 
 	## obtain the shortcut json representation
-	local sc_json="$( jq -c "getpath(${shortcut_absp})" "$gotov_json_filepath" )"
+	local sc_json="$( jq -c "getpath(${shortcut_absp})" "$GOTO_JSON_FILEPATH" )"
 	## count expected number of lines to be added
-	local expected_added_lines="$( jq "getpath(${shortcut_absp})" "$gotov_json_filepath" | wc -l | tr -d ' ' )"
+	local expected_added_lines="$( jq "getpath(${shortcut_absp})" "$GOTO_JSON_FILEPATH" | wc -l | tr -d ' ' )"
 	(( expected_added_lines ++ ))
 
 	# let's add the shortcut (with all its sublist) under the parent
@@ -2034,7 +2066,7 @@ gotoh_print_family() {
 
 	# get the children keywords in a single variable
 	local children_keywords_filter="getpath(${absolute_path})|.list[]|.keyword"
-	local children_keywords="$( jq -cr "${children_keywords_filter}" "${gotov_json_filepath}" | tr '\n' ';' )"
+	local children_keywords="$( jq -cr "${children_keywords_filter}" "${GOTO_JSON_FILEPATH}" | tr '\n' ';' )"
 
 	# now children_keywords is multi-line. break it down into an array.
 	local children_keywords_array=()
@@ -2177,8 +2209,8 @@ gotoui_create() {
 			# begin user-facing prompting
 			local keyword description object_type destination
 			# let user now what they're doing
-			local parent_keyword="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${gotov_json_filepath}" )"
-			local parent_description="$( jq -r "getpath(${matched_absolute_path})|.description" "${gotov_json_filepath}" )"
+			local parent_keyword="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${GOTO_JSON_FILEPATH}" )"
+			local parent_description="$( jq -r "getpath(${matched_absolute_path})|.description" "${GOTO_JSON_FILEPATH}" )"
 			if [ "$auto_directory_mode" = true ]
 			then
 				gotoh_output "Creating a new directory shortcut under ${parent_keyword}: ${parent_description}."
@@ -2250,12 +2282,12 @@ gotoui_create() {
 				# now, check if the would-be parent (which is the match itself) is a dir.
 				# if so, shorten the destination to a relative path using substitution.
 				## this exact algorithm is replicated in gotoui_update
-				local matched_parent_type="$( jq -r "getpath(${matched_absolute_path})|.type" "$gotov_json_filepath" )"
+				local matched_parent_type="$( jq -r "getpath(${matched_absolute_path})|.type" "$GOTO_JSON_FILEPATH" )"
 				# only if type is dir do we do relative path substitution.
 				if [ "$matched_parent_type" = "d" ]
 				then
 					# first obtain match's destination
-					local matched_destination="$( jq -r "getpath(${matched_absolute_path})|.destination" "$gotov_json_filepath" )"
+					local matched_destination="$( jq -r "getpath(${matched_absolute_path})|.destination" "$GOTO_JSON_FILEPATH" )"
 
 					# determine absolute filepath before removing it from destination
 					local matched_absolute_filepath build_status
@@ -2779,7 +2811,7 @@ gotoui_update() {
 						field_specifier_word="destination"
 						# first check that type isn't 't'.
 						local type_filter="getpath(${matched_absolute_path})|.type"
-						local object_type="$( jq -r "${type_filter}" "${gotov_json_filepath}" )"
+						local object_type="$( jq -r "${type_filter}" "${GOTO_JSON_FILEPATH}" )"
 						## if it is 't', you can't change destination.
 						if [ "${object_type}" = "t" ]
 						then
@@ -2795,7 +2827,7 @@ gotoui_update() {
 
 				# now that the field_content has been prompted, we'll update the json
 				## confirm the update
-				local matched_keyword="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${gotov_json_filepath}" )"
+				local matched_keyword="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${GOTO_JSON_FILEPATH}" )"
 				gotoh_output "About to update shortcut '${matched_keyword}'" \
 					"with new ${field_specifier_word} '${field_content}'" "Confirm?"
 				local confirm_update
@@ -2883,7 +2915,7 @@ gotoui_update() {
 				fi
 
 				# time to set the option
-				local setting_name="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${gotov_json_filepath}" )"
+				local setting_name="$( jq -r "getpath(${matched_absolute_path})|.keyword" "${GOTO_JSON_FILEPATH}" )"
 				gotoh_update "-st" "${matched_absolute_path}" "-n" "${selected_option_string}" \
 					&& gotoh_output "Successfully updated setting '${setting_name}'" \
 					"with new option '${selected_option_string}'"
@@ -2992,12 +3024,12 @@ gotoui_update() {
 		#### if so, shorten the destination to a relative path using substitution.
 		#### this exact algorithm is replicated in gotoui_create, with the exception that, here, the parent needs to first be obtained, while the parent is the match in create.
 		local parent_absp="$( jq -c ".[:length-2]" <<< "${matched_absolute_path}" )"
-		local parent_type="$( jq -r "getpath(${parent_absp})|.type" "$gotov_json_filepath" )"
+		local parent_type="$( jq -r "getpath(${parent_absp})|.type" "$GOTO_JSON_FILEPATH" )"
 		# only if parent type is dir do we do relative path substitution.
 		if [ "$parent_type" = "d" ]
 		then
 			# first obtain parent's destination
-			local parent_destination="$( jq -r "getpath(${parent_absp})|.destination" "$gotov_json_filepath" )"
+			local parent_destination="$( jq -r "getpath(${parent_absp})|.destination" "$GOTO_JSON_FILEPATH" )"
 
 			# determine absolute filepath before removing it from destination
 			local parent_absolute_filepath build_status
@@ -3112,7 +3144,7 @@ gotoui_delete() {
 	then
 		# check whether the match has children
 		local children_count_filter="getpath(${matched_absolute_path})|.list|length"
-		local children_count="$( jq "${children_count_filter}" "${gotov_json_filepath}" )"
+		local children_count="$( jq "${children_count_filter}" "${GOTO_JSON_FILEPATH}" )"
 		# get the match path for precise display
 		local match_path="$( gotoh_print_path "${matched_absolute_path}" )"
 		# if match has children, don't delete. else do.
@@ -3577,7 +3609,7 @@ gotoui_browse() {
 					user_choice_is_valid=true
 					# look for the child from among the children list
 					local matched_nodes_filter="getpath(${current_absolute_path})|.list[]?|select(.keyword|test(\"^(.*\\\\|)?${user_choice}(\\\\|.*)?$\"))"
-					local matched_count="$( jq "[${matched_nodes_filter}]|length" "${gotov_json_filepath}" )"
+					local matched_count="$( jq "[${matched_nodes_filter}]|length" "${GOTO_JSON_FILEPATH}" )"
 					# if-else on matched count to determine what to do
 					# if no match, let user know
 					if [ "$matched_count" -eq 0 ]
@@ -3588,7 +3620,7 @@ gotoui_browse() {
 					# elif single match, update current absolute path.
 					elif [ "$matched_count" -eq 1 ]
 					then
-						current_absolute_path="$( jq "path(${matched_nodes_filter})" "${gotov_json_filepath}" )"
+						current_absolute_path="$( jq "path(${matched_nodes_filter})" "${GOTO_JSON_FILEPATH}" )"
 
 					# elif multiple matches, let user know
 					elif [ "$matched_count" -gt 1 ]
@@ -3816,7 +3848,7 @@ gotoui_goto() {
 	
 	## else (if at least one keyword matched in json), check the type at the absolute path.
 	else
-		local destination_filetype="$( jq -r "getpath(${matched_absolute_path})|.type" "${gotov_json_filepath}" )"
+		local destination_filetype="$( jq -r "getpath(${matched_absolute_path})|.type" "${GOTO_JSON_FILEPATH}" )"
 		
 		# if the shortcut is a dir, then set the content at the absolute json path as the dir and fall through to the recursive filesystem search.
 		if [ "$destination_filetype" = "d" ]
