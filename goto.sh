@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.5-a.0+20230421120715"
+gotov_semver="v0.8.6-a.0+20230421121837"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -211,6 +211,7 @@ gotoh_inplace_find_and_replace() {
 ## The output is sent to stderr so as not to conflict with the echo-return of functions
 ## By convention, often called from gotoui_* functions, since they are used to inform the user of the program status.
 gotoh_output() {
+	if [ $# -eq 0 ]; then >&2 echo; return; fi
 	# nicely print the sentence tokens
 	local sentence
 	for sentence in "$@"; do
@@ -534,6 +535,7 @@ then
 	# Ask user for confirmations
 	gotoh_output "== Bootstrapping goto ==" "Please follow the instructions on the prompt."
 	# Confirmation for destination directory
+	gotoh_output
 	gotoh_output "The destination directory for this script and its settings is set to '$gotov_dest_dirpath'." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_dest_dirpath'" "  Otherwise, press [Enter] to leave it as-is."
 	read -p "n or [Enter]: " gotolv_confirm_dest_dirpath
 	if [ -z "$gotolv_confirm_dest_dirpath" ]; then
@@ -546,6 +548,7 @@ then
 	fi
 
 	# Confirmation for alias settings file
+	gotoh_output
 	gotoh_output "The file where you define aliases is set to '$gotov_alias_filepath." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
 	read -p "n or [Enter]: " gotov_confirm_alias_filepath
 	if [ -z "$gotolv_confirm_alias_filepath" ]; then
@@ -624,6 +627,7 @@ gotoh_autoplop() {
 	# copy itself over.
 	cat "$starting_filepath" > "$gotov_dest_filepath"
 	# notify user
+	gotoh_output
 	gotoh_output "$starting_filepath" "  copied to" "  $gotov_dest_filepath" "You can now safely delete this file from the current directory."
 }
 
@@ -644,6 +648,7 @@ else
 		then
 			gotoh_autoplop
 		else
+			gotoh_output
 			gotoh_output "The current script will not replace the existing script."
 		fi
 	fi
@@ -668,6 +673,7 @@ then
 	echo "$gotov_alias_description" >> "$gotov_alias_filepath"
 	echo "$gotov_alias_definition" >> "$gotov_alias_filepath"
 	# notify user
+	gotoh_output
 	gotoh_output "The alias 'goto' has been added to $gotov_alias_filepath" "  Restart the shell for this alias to take effect."
 fi 
 unset tmptrash
@@ -677,6 +683,7 @@ unset tmptrash
 tmptrash="$(which jq)"
 if [ $? -ne 0 ]
 then
+	gotoh_output
 	gotoh_output "You do not yet have jq installed. Please install jq." \
 		"  If you are on a Mac, Homebrew is a great way to install it."
 	return $gotocode_missing_dependency
