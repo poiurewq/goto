@@ -1,7 +1,7 @@
 # goto: go to an oft-used directory, a file, or a website, with the help of keyword mappings.
 #
 # author: QZ
-# version: type 'goto' to see
+# version: stored at gotov_semver; type 'goto' to see
 # built: 2022-12-26 ~
 # maintained: 2022-12-24 ~
 
@@ -33,7 +33,8 @@
 #     simusg
 #     dtusg
 #   compdefs
-#     cmpgt
+#     compgt
+#     compfunc
 # -- bootstrapping --
 # ftbtdf
 #   ssbtvdef
@@ -142,7 +143,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.7.4-a.0+20230421014532"
+gotov_semver="v0.8.0-a.0+20230421035618"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -378,18 +379,75 @@ CRUD usage: goto [options]
       # browse shortcuts. allows for interactive CRUD-ing.
         goto -b
 
+autocompletion: in a session, you must run goto at least once to enable autocompletion and before attaching autocompletion to anything function 
+  goto --attach function  # attach goto completion to a custom function (non-interactive)
+                          # note that you can only attach to functions, not aliases
+  goto --quietly-attach f # same as above, but no default output
+
 other usage:
-  goto --version         # display version and build   (non-interactive)
-  goto --factory-setting # reset to factory setting    (interactive)
-  goto --title           # display a nice title screen (non-interactive)
+  goto --version          # display version and build   (non-interactive)
+  goto --factory-setting  # reset to factory setting    (interactive)
+  goto --title            # display a nice title screen (non-interactive)
 
 GOTO_DETAILED_USAGE
 }
 
 # == autocomplete helper functions compdefs ==
 
-# -- completion helper for goto cmpgt --
+# -- completion helper for goto compgt --
+# generates a list of appropriate completions based on given key
+# assumption: by the time this is sourced, the alias 'goto' will already have been defined
+## attach to the alias 'goto'
+# note that this function is not a 'gotoh_' but a _goto, because it needs to live on in the background of the user's shell for complete to attach to the appropriate aliases
+_goto_complete_goto() {
+	# early returns
+	if [ -z "${COMP_WORDS[COMP_CWORD]}" ]; then
+		return
+	fi
 
+	# sanitize autocomplete
+	local raw_word sanitized_word=""
+	local raw_length raw_max_index raw_char_index
+	raw_word="${COMP_WORDS[COMP_CWORD]}"
+	raw_length="${#raw_word}"
+	raw_max_index=$(( raw_length - 1 ))
+	for raw_char_index in $(seq 0 ${raw_max_index}); do
+		sanitized_word+='['
+		sanitized_word+="${raw_word:${raw_char_index}:1}"
+		sanitized_word+=']'
+	done
+
+	# get all available ones
+	local keyword_filter
+	if [[ "$COMP_LINE" =~ -st ]]; then
+		keyword_filter='.[0]'
+	else
+		keyword_filter='.[1]'
+	fi
+	keyword_filter+="|recurse(.list[]?)|select(.keyword|test(\"^(.*\\\\|)?${sanitized_word}.*(\\\\|.*)?$\"))|.keyword"
+	COMPREPLY=( $(jq -r "$keyword_filter" "$gotov_json_filepath" | awk -F'[ |]+' '{for(i=1;i<=NF;i++)print $i}' | grep "^${raw_word}.*") )
+}
+complete -F _goto_complete_goto goto
+
+# -- attach goto completion to a specified function compfunc --
+gotoh_attach_completion() {
+	local function_to_attach="$1"
+	local quiet_flag="$2"
+	type "$function_to_attach" 2&>/dev/null
+	if [ $? -ne 0 ]; then
+		if [ -z "$quiet_flag" ]; then
+			gotoh_output "The function '${function_to_attach}' doesn't exist."
+		else
+			gotoh_verbose "The function '${function_to_attach}' doesn't exist."
+		fi
+		return 1
+	fi
+	if [ -z "$quiet_flag" ]; then
+		complete -F _goto_complete_goto "$function_to_attach" && gotoh_output "Successfully attached goto completion to the function '${function_to_attach}'" || { gotoh_output "Failed to attach goto completion to the function '${function_to_attach}'"; return 1; }
+	else
+		complete -F _goto_complete_goto "$function_to_attach" && gotoh_verbose "Successfully attached goto completion to the function '${function_to_attach}'" || { gotoh_verbose "Failed to attach goto completion to the function '${function_to_attach}'"; return 1; }
+	fi
+}
 
 # == extracting delimited strings xtrs ==
 # Input
@@ -836,6 +894,14 @@ case "$1" in
 		;;
 	--title)
 		gotoh_title
+		return $gotocode_success
+		;;
+	--attach)
+		gotoh_attach_completion "$2" || return $gotocode_unknown
+		return $gotocode_success
+		;;
+	--quietly-attach)
+		gotoh_attach_completion "$2" quiet || return $gotocode_unknown
 		return $gotocode_success
 		;;
 esac
@@ -3974,5 +4040,6 @@ gotoui_goto() {
 gotoui_goto "$@"
 # reset pipefail in case it's set to 'on' in gotoui_goto
 set +o pipefail
+# unset all goto helper functions to prevent namespace pollution
 gotoh_unset_all
 return $gotocode_success
