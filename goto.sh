@@ -143,7 +143,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.2-a.0+20230421041805"
+gotov_semver="v0.8.2-a.1+20230421042342"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -501,7 +501,7 @@ then
 	# Set first-time flag to true, so normal goto proper won't be carried out.
 	gotov_firsttime_status=true
 	# Ask user for confirmations
-	goto_output "== Bootstrapping goto ==" "Please follow the instructions on the prompt."
+	gotoh_output "== Bootstrapping goto ==" "Please follow the instructions on the prompt."
 	# Confirmation for destination directory
 	gotoh_output "The destination directory for this script and its settings is set to '$gotov_dest_dirpath'." "  If you'd like to change it, type 'n', then go into the script and change the variable named '\$gotov_dest_dirpath'" "  Otherwise, press [Enter] to leave it as-is."
 	read -p "n or [Enter]: " gotolv_confirm_dest_dirpath
