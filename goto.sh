@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.6-a.2+20230421123035"
+gotov_semver="v0.8.6-a.3+20230423225146"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -396,10 +396,12 @@ CRUD usage: goto [options]
       # browse shortcuts. allows for interactive CRUD-ing.
         goto -b
 
-autocompletion: in a session, you must run goto at least once to enable autocompletion and before attaching autocompletion to anything function 
-  goto --attach function  # attach goto completion to a custom function (non-interactive)
-                          # note that you can only attach to functions, not aliases
+autocompletion: in a session, you must run goto at least once to enable autocompletion 
+                and before attaching autocompletion to any function 
+  goto --attach f         # attach goto autocompletion to a custom function 'f' (non-interactive)
+                          # note that this can only attach to functions, not aliases
   goto --quietly-attach f # same as above, but no default output
+                          # useful for putting in your default login commands file
 
 other usage:
   goto --version          # display version and build   (non-interactive)
@@ -3948,6 +3950,9 @@ gotoui_goto() {
 
 		# get the found filepath result
 		current_find_result="$( gotolf_current_find_command )" || return $?
+
+		# unset current find command
+		unset -f gotolf_current_find_command
 
 		# = if-else on the filesystem search match count fsmc =
 		# - fsnm -
