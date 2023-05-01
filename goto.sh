@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.6-a.3+20230423225146"
+gotov_semver="v0.8.6-a.3+20230501101056"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -334,7 +334,7 @@ GOTO_USAGE
 # -- dtusg --
 # detailed usage output
 gotoh_detailed_usage() {
-	less <<GOTO_DETAILED_USAGE
+	cat <<GOTO_DETAILED_USAGE
 
 goto: maintain and open shortcuts to files, directories, and links.
 
@@ -1368,10 +1368,10 @@ gotoh_get_parent_path() {
 
 # -- construct the full file path starting from a shortcut to a relative-path cffp --
 # Input
-#   $1 = jq-style absolute path to a shortcut that has a relative path as its destination
+## $1 = jq-style absolute path to a shortcut that has a relative path as its destination
 # Output
 ## an absolute filesystem path built from shortcut and its parents, all the way up to some absolute path.
-## return code 0 for success, 1 for relative paths all the way up, 2 for when a parent up the chain is not a 'd' even thought the destinations of the shortcuts leading up to it from the starting shortcut are all relative paths.
+## return code 0 for success, 1 for relative paths all the way up, 2 for when a parent up the chain is not a 'd' (directory shortcut) even though the destinations of the shortcuts leading up to it from the starting shortcut are all relative paths.
 # Behavior
 ## Given the shortcut, returns its full filesystem absolute path
 # Invariants
@@ -1938,7 +1938,8 @@ gotoh_delete() {
 ### check that shortcut isn't already a direct child of parent, in which case moving is a waste of time.
 ### also check that shortcut isn't equal to or a parent of parent, else we would lose data at the deletion stage.
 ## if so, stores each field of the shortcut, to be used for creation later
-## also obtains shortcut's starting path and ending path for later display
+### obtain both parent and to-be-child absolute filepaths, then update to-be-child's relative path destination as appropriate TODO
+## also obtains shortcut's starting and ending keyword paths for later display
 ## calls gotoh_overwrite_json to create identical shortcut under parent
 ## calls gotoh_delete to delete original shortcut by absolute path
 ## helpfully outputs information about shortcut's original parent and shortcut's new parent
@@ -3227,9 +3228,9 @@ gotoui_delete_recursive() {
 # == user interface function for moving a node moui ==
 # move is a non-interactive function
 # Input
-#   $1~n-1		= shortcut
-#   $n			= -under
-#   $n+1~end	= parent
+## $1~n-1		= shortcut
+## $n			= -under
+## $n+1~end		= parent
 # Output
 ## echo success with a user-friendly message
 ## return 0 if success,
@@ -3240,7 +3241,7 @@ gotoui_delete_recursive() {
 # Behavior
 ## parses user input to obtain shortcut keywords and parent keywords lists.
 ## makes sure all shortcut, -under, and parent keys are provided.
-## searches for shortcut, obtains its key path (should need a helpful for that, and call that helper from multipath cases as well) or outputs shortcut not found.
+## searches for shortcut, obtains its key path (should need a helper for that, and call that helper from multipath cases as well) or outputs shortcut not found.
 ## searches for parent, obtains its key path or outputs parent not found.
 ## runs gotoh_move on the absolute paths, letting it output the appropriate information about the shortcut and its parents.
 # Invariants
