@@ -192,7 +192,7 @@ export GOTO_JSON_FILEPATH='' # the json filepath is an env var so that autocompl
 ## sed command
 ## destination file
 gotoh_inplace_find_and_replace() {
-	if [ "$OSTYPE" = "darwin"* ]; then
+	if [[ "$OSTYPE" =~ darwin ]]; then
 		sed -i '' "$1" "$2"
 	else
 		sed -i "$1" "$2"
