@@ -9,7 +9,7 @@ else
 fi
 # Correct some idiosyncrasies for general release.
 sed -i '' 's@^gotov_dest_dirpath=~/".bash_ccm"\(.*\)$@gotov_dest_dirpath=~/".goto"\1@' goto.sh
-sed -i '' 's@^\(gotov_alias_filepath=.*# uncomment.*\)$@# \1@' goto.sh
+sed -i '' 's@^\(gotov_alias_filepath=\).*\(# uncomment.*\)$@# \1 \2@' goto.sh
 sed -i '' 's@^# \(gotov_alias_filepath=.*# comment.*\)$@\1@' goto.sh
 # Change first time back to true.
 sed -i '' 's@^# FIRSTTIME=FALSE$@# FIRSTTIME=TRUE@' goto.sh
