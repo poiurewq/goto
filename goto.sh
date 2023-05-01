@@ -493,11 +493,11 @@ gotoh_extract_substring() {
 gotoh_rc_finder() {
 	local current_shell="$(basename -- "$(echo $0)")"
 	case "$current_shell" in
-	bash) echo '.bashrc' ;;
-	ash) echo '.profile' ;;
-	csh) echo '.cshrc' ;;
-	zsh) echo '.zshrc' ;;
-	ksh) echo '.kshrc' ;;
+	*bash) echo '.bashrc' ;;
+	*ash) echo '.profile' ;;
+	*csh) echo '.cshrc' ;;
+	*zsh) echo '.zshrc' ;;
+	*ksh) echo '.kshrc' ;;
 	*) echo '.profile' ;;
 	esac
 }
