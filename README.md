@@ -3,6 +3,7 @@
 ```
 notes to self:
 - fix gotov_confirm_alias_filepath to gotolv_confirm_alias_filepath so 'n' is registered.
+- organize and move the features list to the public repo for easier dev on other devices & for feature requests
 ```
 
 **goto** is a command-line shortcuts manager that lets users quickly go to files, directories, and links to websites. The program is entirely contained within a single large script, `goto.sh`. **goto** keeps track of shortcuts internally as keywords linked in a tree-like data structure. This way, you can define shortcuts nested inside other shortcuts, allowing for the grouping of shortcuts by topic. You can go to any shortcut by specifying a sequence of keywords along the tree branch leading to that shortcut. More simply, if a deeply-nested shortcut has a unique name, say, 'aardvark', you can also simply type `goto aardvark` to go there.
