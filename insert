@@ -1,0 +1,18 @@
+#!/bin/bash
+insertv_goto_filepath='./goto.sh'
+insertv_goto_insertpath=~/'.bash_ccm/goto.sh'
+cp $insertv_goto_insertpath ~/.bash_ccm/.goto.sh.bu
+if [ -f $insertv_goto_filepath ] && [ -f $insertv_goto_insertpath ]
+then
+	cp $insertv_goto_filepath $insertv_goto_insertpath
+else
+	echo "Can't find goto.sh at path '$insertv_goto_filepath' or '$insertv_goto_insertpath'"
+	return 1
+fi
+# Correct some idiosyncrasies for general insert.
+sed -i '' 's@^gotov_dest_dirpath=.*$@gotov_dest_dirpath=~/".bash_ccm"@' $insertv_goto_insertpath
+sed -i '' 's@^# gotov_alias_filepath=.*\(# uncomment.*\)$@gotov_alias_filepath=~/".bash_ccm/sccm.sh" \1@' $insertv_goto_insertpath
+sed -i '' 's@^\(gotov_alias_filepath=.*# comment.*\)$@# \1@' $insertv_goto_insertpath
+# Change first time back to false.
+sed -i '' 's@^# FIRSTTIME=TRUE$@# FIRSTTIME=FALSE@' $insertv_goto_insertpath
+# Leave build metadata alone
