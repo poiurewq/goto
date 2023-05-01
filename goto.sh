@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.6-a.3+20230501101056"
+gotov_semver="v0.8.7-a.3+20230501101056"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -551,7 +551,7 @@ then
 
 	# Confirmation for alias settings file
 	gotoh_output
-	gotoh_output "The file where you define aliases is set to '$gotov_alias_filepath." "  If you'd like to change it, type 'n'," "  then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
+	gotoh_output "The file where you define aliases is set to '$gotolv_alias_filepath." "  If you'd like to change it, type 'n'," "  then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
 	read -p "    n or [Enter]: " gotov_confirm_alias_filepath
 	if [ -z "$gotolv_confirm_alias_filepath" ]; then
 		:
