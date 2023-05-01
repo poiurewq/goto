@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.7-a.3+20230501101056"
+gotov_semver="v0.8.8-a.3+20230501145834"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -512,14 +512,14 @@ then
 	return $gotocode_var_empty
 fi
 
-gotov_dest_dirpath=~/".goto" # set this to what you want
+gotov_dest_dirpath=~/".goto"
 gotov_dest_filepath="$gotov_dest_dirpath/$gotov_filename"
 
 # -- alsvdef --
 # alias setting variable definitions
 # leave this alone if you want to use the default
 gotov_alias_filepath=~/"$(gotoh_rc_finder)" # comment this out to set your own
-# gotov_alias_filepath=~/".bash_ccm/sccm.sh" # uncomment this to set your own alias filepath
+# gotov_alias_filepath= # uncomment this to set your own alias filepath
 gotov_alias_description="# define an alias for the goto.sh custom script"
 gotov_alias_definition="alias goto='source ${gotov_dest_filepath}'"
 
@@ -552,7 +552,7 @@ then
 	# Confirmation for alias settings file
 	gotoh_output
 	gotoh_output "The file where you define aliases is set to '$gotolv_alias_filepath." "  If you'd like to change it, type 'n'," "  then go into the script and change the variable named '\$gotov_alias_filepath'" "  Otherwise, press [Enter] to leave it as-is."
-	read -p "    n or [Enter]: " gotov_confirm_alias_filepath
+	read -p "    n or [Enter]: " gotolv_confirm_alias_filepath
 	if [ -z "$gotolv_confirm_alias_filepath" ]; then
 		:
 	elif [ "$gotolv_confirm_alias_filepath" = 'n' ]; then
