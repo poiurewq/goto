@@ -192,7 +192,7 @@ export GOTO_JSON_FILEPATH='' # the json filepath is an env var so that autocompl
 ## sed command
 ## destination file
 gotoh_inplace_find_and_replace() {
-	if [ "$OSTYPE" = "darwin"* ]; then
+	if [[ "$OSTYPE" =~ darwin ]]; then
 		sed -i '' "$1" "$2"
 	else
 		sed -i "$1" "$2"
@@ -493,11 +493,11 @@ gotoh_extract_substring() {
 gotoh_rc_finder() {
 	local current_shell="$(basename -- "$(echo $0)")"
 	case "$current_shell" in
-	bash) echo '.bashrc' ;;
-	ash) echo '.profile' ;;
-	csh) echo '.cshrc' ;;
-	zsh) echo '.zshrc' ;;
-	ksh) echo '.kshrc' ;;
+	*bash) echo '.bashrc' ;;
+	*ash) echo '.profile' ;;
+	*csh) echo '.cshrc' ;;
+	*zsh) echo '.zshrc' ;;
+	*ksh) echo '.kshrc' ;;
 	*) echo '.profile' ;;
 	esac
 }
