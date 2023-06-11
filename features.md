@@ -81,6 +81,7 @@ See also goto public repo's README.
 - add ability to read the direct parent of any matched keyword
 - for upgrade and add, allow user to specify as many command line options as they want, in any order, and interactively prompt for the rest.
 - add setting for auto-exiting terminal after running a go command
+- allow for disabling certain shortcuts & their children, so that the rcjs alg doesn't include them
 
 ## Meta
 - Add a license to goto
