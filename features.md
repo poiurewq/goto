@@ -49,6 +49,7 @@ See also goto public repo's README.
 - goto <a topic> should just print the topic by default
 - improve json search algorithm so that the search time doesn't scale linearly with the json file size
 - make goto filesystem search much faster by using locate instead of find, this also requires running updatedb first...
+- for increase in speed, completely drop jq and replace it with a tree search based on using find command through a folder hierarchy (deep nesting capability is good for both mac and git; OS-native folder search uses efficient B-tree or faster algorithm written with low-level code; no need for installation of another package, so reduces dependencies; allows for maintenance of bash-based script without needing a language transition if speed can be significantly increased by this method)
 
 ## Expand Features (API)
 - auto-directory for update: interactive & non-interactive.

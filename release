@@ -1,4 +1,3 @@
-#!/bin/bash
 releasev_goto_filepath=~/'.bash_ccm/goto.sh'
 if [ -f $releasev_goto_filepath ]
 then
