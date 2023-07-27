@@ -145,7 +145,7 @@
 # see semver.org
 # prerelease version is -[a|b].[0-9]
 # build-metadata is +yyyymmddhhmm: run $date '+%Y%m%d%H%M%S'
-gotov_semver="v0.8.8-a.3+20230620230047"
+gotov_semver="v0.8.9-a.0+20230727121257"
 
 # -- general error codes cddefs --
 gotocode_success=0
@@ -3557,18 +3557,27 @@ gotoui_browse() {
 					if [ $? -eq 0 ]
 					then
 
-						# predict where the current absolute path should be in order to remain at the move destination. this only matters if the shortcut that is deleted is a sibling of an ancestor of the destination (parent) node.
+						# predict where the current absolute path should be in order to remain at the move destination. this only matters if the shortcut that is deleted is a direct sibling or a sibling of an ancestor of the destination (parent) node.
 						## This filter generates either 'noop' or the first element index at which the current_absolute_path should be decremented by one due to deletion of original shortcut
-						### Algorithmically, the first element is the first index at which the two paths differ: that is the first depth at which the branches diverge between shortcut and parent. If the first element index is out of range (jq index() returns null), then it is a noop, since parent is a direct ancestor of shortcut, so deleting shortcut doesn't affect path to parent.
+						### Algorithmically, the first element is the first absolute path index (depth) at which the two paths differ: that is the first depth at which the branches diverge between shortcut and parent. If the first element index is out of range (jq index() returns null), then it is a noop, since destination is a direct ancestor of shortcut, so deleting shortcut doesn't affect path to parent.
+						#### Note that we run foreach over each element of the PARENT (destination) absp rather than over each element of the move-sc-absp because the PARENT absp is always shorter than the one to be moved, so we exhaust the parent in comparing it against the shortcut.
 						local current_absp_op="$( jq -ncr "${move_shortcut_absp} as \$sc | ${current_absolute_path} as \$par | (\$par | to_entries ) as \$parkeys | \$parkeys | [ foreach .[] as \$parelem ({}; \$parelem; (.key | tonumber) as \$k | .value as \$v | \$sc | .[\$k] == \$v ) ] | index(false) // \"noop\"" )"
+
 						case "$current_absp_op" in
 							# if noop, don't do anything to the current absolute path.
 							noop) : ;;
 
-							# else, it's an index.
+							# else, it's an index, which still does NOT mean we must decrement the index, we do one more check.
 							*)
-								# decrement at the appropriate index
-								current_absolute_path="$( jq -nr "${current_absolute_path} | .[${current_absp_op}] |= .-1" )"
+								# We now need to see if, at the first depth of difference, whether the current-absp is greater than the move-sc-absp. If so, decrement. Else, it's fine and we don't need to decrement.
+								local move_sc_absp_first_index_of_difference="$( jq -nr "${move_shortcut_absp} | .[${current_absp_op}]" )"
+								local current_absp_first_index_of_difference="$( jq -nr "${current_absolute_path} | .[${current_absp_op}]" )"
+								if [ "${current_absp_first_index_of_difference}" -gt "${move_sc_absp_first_index_of_difference}" ]
+								then
+									# decrement at the appropriate depth
+									current_absolute_path="$( jq -nr "${current_absolute_path} | .[${current_absp_op}] |= .-1" )"
+								fi
+								# else do nothing
 								;;
 						esac
 
