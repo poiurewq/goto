@@ -50,6 +50,7 @@ See also goto public repo's README.
 - improve json search algorithm so that the search time doesn't scale linearly with the json file size
 - make goto filesystem search much faster by using locate instead of find, this also requires running updatedb first...
 - for increase in speed, completely drop jq and replace it with a tree search based on using find command through a folder hierarchy (deep nesting capability is good for both mac and git; OS-native folder search uses efficient B-tree or faster algorithm written with low-level code; no need for installation of another package, so reduces dependencies; allows for maintenance of bash-based script without needing a language transition if speed can be significantly increased by this method)
+- for goto create UI, flip the API from `-c [-k key -d desc -t type -n dest] -under parent` to `-c -under parent [-k key -d desc -t type -n dest]`
 
 ## Expand Features (API)
 - auto-directory for update: interactive & non-interactive.
@@ -83,6 +84,7 @@ See also goto public repo's README.
 - for upgrade and add, allow user to specify as many command line options as they want, in any order, and interactively prompt for the rest.
 - add setting for auto-exiting terminal after running a go command
 - allow for disabling certain shortcuts & their children, so that the rcjs alg doesn't include them
+- after adding directory-based traversal, add a functionality to convert current master directory into a JSON file for portability and syncing purposes, then to convert from JSON back into a master directory.
 
 ## Meta
 - Add a license to goto
